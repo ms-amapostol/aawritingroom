@@ -37,8 +37,8 @@
 
   /* font modes (serif is the default literary mix; these override globally when chosen) */
   .app.font-sans, .app.font-sans *{font-family:'Inter',system-ui,-apple-system,sans-serif !important;}
-  .app.font-type, .app.font-type *{font-family:'IBM Plex Mono','Courier New',monospace !important;}
-  .app.font-type .write-area, .app.font-type .card .cbody{letter-spacing:-.01em;}
+  .app.font-type, .app.font-type *{font-family:'IBM Plex Mono','Courier New',monospace !important;letter-spacing:-.045em;}
+  .app.font-type .write-area{letter-spacing:-.055em;font-size:14px;}
 
   /* top bar */
   .topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(243,239,231,.82);backdrop-filter:blur(8px);z-index:20;}
@@ -299,6 +299,22 @@
   .pub-title{font-family:'Fraunces';font-size:15.5px;margin-bottom:2px;}
   .pub-step.done .pub-title{text-decoration:line-through;text-decoration-color:rgba(0,0,0,.25);}
   .pub-desc{font-size:13px;color:var(--muted);line-height:1.5;}
+  /* scope master control */
+  .scope-master{background:var(--indigo-soft);border:1px solid #c9e3e0;border-radius:10px;padding:10px 12px;margin:0 0 12px;}
+  .scope-row{display:flex;align-items:center;gap:8px;}
+  .scope-row .world-select{flex:1;min-width:0;max-width:100%;}
+  .scope-note{font-size:11.5px;color:#175E57;margin-top:6px;line-height:1.45;}
+  /* marketing plan */
+  .mk-hook{font-family:'Fraunces';font-size:18px;line-height:1.45;margin-bottom:8px;}
+  .mk-label{font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--indigo);margin:12px 0 5px;}
+  .mk-task{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px dashed var(--line);}
+  .mk-task:last-child{border-bottom:none;}
+  .mk-task .pub-check{width:22px;height:22px;font-size:12px;}
+  .mk-task.done .mk-t{text-decoration:line-through;text-decoration-color:rgba(0,0,0,.3);opacity:.7;}
+  .mk-t{font-size:13.5px;font-weight:500;}
+  .mk-why{font-size:12px;color:var(--muted);line-height:1.45;margin-top:1px;}
+  .mk-chiprow{display:flex;flex-wrap:wrap;gap:6px;}
+  .mk-chip{background:var(--sage-soft);border:1px solid #D7E0E4;border-radius:999px;padding:3px 11px;font-size:12.5px;}
   .crow-role{font-size:12.5px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .tier-badge{font-family:'IBM Plex Mono';font-size:9px;text-transform:uppercase;letter-spacing:.03em;border-radius:4px;padding:2px 7px;flex-shrink:0;}
   .tier-badge.main{background:var(--indigo);color:#fff;}
@@ -401,7 +417,7 @@
   .upload-row .ur-sub{font-size:12.5px;color:var(--muted);margin-bottom:12px;}
   .file-btn{display:inline-block;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:9px 15px;font-size:13px;font-weight:500;cursor:pointer;}
   .file-btn:hover{border-color:var(--indigo);}
-  .world-select{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;background:#fff;}
+  .world-select{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;background:#fff;max-width:100%;}
 </style>
 </head>
 <body>
@@ -912,7 +928,7 @@ const iGear = <Ico d={<><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.
 
 /* ==================================================================== */
 function App(){
-  const [settings, setSettings] = useState(()=>store.get("ss_settings", {apiKey:"", model:"claude-sonnet-4-6", font:"serif"}));
+  const [settings, setSettings] = useState(()=>store.get("ss_settings", {apiKey:"", model:"claude-sonnet-4-6", font:"sans"}));
   const [projects, setProjects] = useState(()=>{
     let list = store.get("ss_projects", null);
     if(!list){ // migrate a single old project if present
@@ -981,7 +997,7 @@ function App(){
   });
 
   return (
-    <div className={"app font-"+(settings.font||"serif")}>
+    <div className={"app font-"+(settings.font||"sans")}>
       <div className="topbar">
         <div className="brand" style={{cursor:"pointer"}} onClick={()=>{setCurrentId(null);setNewFlow(false);}}>
           <span className="logo">Anastasia's Writing Room</span>
@@ -1393,20 +1409,67 @@ function Workspace({project, upd, ai, openSettings}){
         {tab==="world"      && <WorldTab project={project} upd={upd} ai={ai} openSettings={openSettings} onJumpToDoc={gotoDoc} logReview={logReview} />}
         {tab==="writing"    && <WritingTab project={project} upd={upd} ai={ai} openSettings={openSettings} focusDoc={focusDoc} onFocusConsumed={()=>setFocusDoc(null)} onJumpToChar={gotoCharacter} logReview={logReview} />}
         {tab==="review"     && <ReviewTab project={project} upd={upd} onJumpToDoc={gotoDoc} onJumpToChar={gotoCharacter} setTab={setTab} />}
-        {tab==="publish"    && <PublishTab project={project} upd={upd} setTab={setTab} />}
+        {tab==="publish"    && <PublishTab project={project} upd={upd} setTab={setTab} ai={ai} openSettings={openSettings} />}
       </div>
     </div>
   );
 }
 
 /* ---------------- PUBLISH TAB — the business of writing, at your pace ---------------- */
-function PublishTab({project, upd, setTab}){
+function PublishTab({project, upd, setTab, ai, openSettings}){
   const pr=publishReadiness(project);
   const dp=draftProgress(project);
   const openR=(project.reviews||[]).filter(r=>r.status==="open").length;
   const checklist=project.pubChecklist||{};
   const toggle=(k)=>upd({pubChecklist:{...checklist,[k]:!checklist[k]}});
   const doneCount=PUB_STEPS.filter(s=>s.auto? dp.pct>=100 : checklist[s.k]).length;
+
+  const [mkBusy,setMkBusy]=useState(false);
+  const [auBusy,setAuBusy]=useState(false);
+  const [perr,setPerr]=useState("");
+  const mp=project.marketingPlan;
+  const audit=project.salesAudit;
+  const mkDone=project.marketingDone||{};
+  const taskKey=(phase,t)=>phase+"|"+(t||"").slice(0,60);
+  const toggleTask=(k)=>upd({marketingDone:{...mkDone,[k]:!mkDone[k]}});
+
+  const bookBrief = ()=>`Title: "${project.title}" — ${typeLabel(project.type)}${project.genre?`, ${project.genre}`:""}.
+What it's about (armature): ${project.armature||"(not defined yet)"}
+${project.logline?`Logline: ${project.logline}`:""}
+Premise: ${(project.premise||"").slice(0,400)}
+Current length: ${wordCountOf(project).toLocaleString()} words (${dp.pct}% of target). Market-shape score: ${marketReadiness(project).score}/100.`;
+
+  async function draftMarketing(){
+    if(!ai.ready){ openSettings(); return; }
+    setPerr(""); setMkBusy(true);
+    try{
+      const out=await ai.run({
+        maxTokens:1900,
+        system:"You are a marketing strategist for self-published authors with no existing platform and a small budget. Be realistic and specific to THIS book — no generic 'post on social media' filler. Everything is a suggestion the author will edit; never promise results. Return ONLY a JSON object.",
+        prompt:`Draft a self-publishing marketing plan for this book:\n${bookBrief()}\n\nReturn: {"positioning":{"hook":"one sentence a reader would repeat to a friend","audience":"who this is for, specifically","comps":["2-3 comparable titles or authors those readers already love"]},"phases":[{"name":"Before launch (4–6 weeks out)","tasks":[{"t":"specific task","why":"one line on why it earns its time"}]},{"name":"Launch week","tasks":[...]},{"name":"First 90 days","tasks":[...]}],"channels":[{"name":"channel","why":"why it fits this book and a no-platform author"}],"keywords":["7 store-search keyword phrases readers would actually type"],"categories":["2-3 store categories where this can rank"]}\n3-5 tasks per phase. Favor free/cheap, compounding tactics.`
+      });
+      const j=parseJSON(out);
+      if(j&&j.phases) upd({marketingPlan:j, marketingDone:{}});
+      else setPerr("The plan came back garbled — try again.");
+    }catch(e){ setPerr(e.message==="NO_KEY"?"Add your API key first.":e.message); }
+    setMkBusy(false);
+  }
+
+  async function runAudit(){
+    if(!ai.ready){ openSettings(); return; }
+    setPerr(""); setAuBusy(true);
+    try{
+      const out=await ai.run({
+        maxTokens:1100,
+        system:"You are an honest advisor to a self-published author. Assess how effectively this book could SELL via self-publishing — positioning, audience clarity, genre fit, hooks — based only on what's provided. Be candid but constructive; never crush motivation, never promise sales. Return ONLY a JSON object.",
+        prompt:`Assess this book's selling position for self-publishing:\n${bookBrief()}\nPublishing steps done: ${doneCount}/${PUB_STEPS.length}. Open review items: ${openR}.\n\nReturn: {"readiness":"one honest paragraph on where the selling position stands today","basis":"2-3 sentences on how you formed this view: what signals you weighed (genre, positioning, length, readiness data) and what you cannot see from here (actual market response, luck, timing)","strengths":["2-3 genuine commercial strengths"],"risks":["2-3 honest risks or gaps"],"levers":[{"move":"highest-impact action available now","impact":"why it moves the needle"}]}\n2-3 levers max.`
+      });
+      const j=parseJSON(out);
+      if(j&&j.readiness) upd({salesAudit:j});
+      else setPerr("The assessment came back garbled — try again.");
+    }catch(e){ setPerr(e.message==="NO_KEY"?"Add your API key first.":e.message); }
+    setAuBusy(false);
+  }
 
   return (
     <div>
@@ -1447,6 +1510,92 @@ function PublishTab({project, upd, setTab}){
       <div style={{fontFamily:"'Newsreader'",fontStyle:"italic",fontSize:13,color:"var(--muted)",marginTop:14,lineHeight:1.6}}>
         One writer's note: the steps look long, but each is smaller than writing the book was — and you're doing that. Check them off as life allows.
       </div>
+
+      <div className="section-head" style={{marginTop:30}}>
+        <div><h2 style={{fontSize:22}}>Marketing, demystified</h2><div className="sub">A plan drafted for <em>this</em> book — realistic, low-budget, and yours to edit. Suggestions, never guarantees. {iSpark} = uses your API key.</div></div>
+        <button className="btn btn-primary" disabled={mkBusy} onClick={draftMarketing}>
+          {mkBusy? <><span className="spin"></span> Drafting…</> : (mp? <>↻ Redraft the plan</> : <>{iSpark} Draft my marketing plan</>)}
+        </button>
+      </div>
+
+      {!mp && !mkBusy && <div className="empty">No plan yet. When you're ready, I'll read your title, genre, armature, and logline and draft a positioning + launch plan you can check off like the steps above. It works best once your armature and a few pages exist.</div>}
+
+      {mp && (
+        <div>
+          <div className="card" style={{marginBottom:12}}>
+            <div className="mono" style={{marginBottom:6,color:"var(--indigo)"}}>Positioning</div>
+            {mp.positioning?.hook && <div className="mk-hook">“{mp.positioning.hook}”</div>}
+            {mp.positioning?.audience && <div style={{fontSize:13.5}}><b style={{fontWeight:600}}>Who it's for:</b> {mp.positioning.audience}</div>}
+            {Array.isArray(mp.positioning?.comps)&&mp.positioning.comps.length>0 && <>
+              <div className="mk-label">Readers who love</div>
+              <div className="mk-chiprow">{mp.positioning.comps.map((c,i)=><span className="mk-chip" key={i}>{c}</span>)}</div>
+            </>}
+          </div>
+
+          {(mp.phases||[]).map((ph,pi)=>(
+            <div className="card" style={{marginBottom:12}} key={pi}>
+              <div className="mono" style={{marginBottom:4,color:"var(--indigo)"}}>{ph.name}</div>
+              {(ph.tasks||[]).map((t,ti)=>{ const k=taskKey(ph.name,t.t); const on=!!mkDone[k]; return (
+                <div className={"mk-task"+(on?" done":"")} key={ti}>
+                  <button className={"pub-check"+(on?" on":"")} onClick={()=>toggleTask(k)}>{on?"✓":""}</button>
+                  <div><div className="mk-t">{t.t}</div>{t.why && <div className="mk-why">{t.why}</div>}</div>
+                </div>
+              );})}
+            </div>
+          ))}
+
+          {(Array.isArray(mp.channels)&&mp.channels.length>0) && (
+            <div className="card" style={{marginBottom:12}}>
+              <div className="mono" style={{marginBottom:6,color:"var(--indigo)"}}>Where to show up</div>
+              {mp.channels.map((c,i)=>(<div key={i} style={{marginBottom:6}}><b style={{fontWeight:600,fontSize:13.5}}>{c.name}</b><div className="mk-why">{c.why}</div></div>))}
+            </div>
+          )}
+
+          {(Array.isArray(mp.keywords)&&mp.keywords.length>0) && (
+            <div className="card" style={{marginBottom:12}}>
+              <div className="mono" style={{marginBottom:6,color:"var(--indigo)"}}>Store keywords & categories</div>
+              <div className="mk-chiprow">{mp.keywords.map((k,i)=><span className="mk-chip" key={i}>{k}</span>)}</div>
+              {Array.isArray(mp.categories)&&mp.categories.length>0 && <>
+                <div className="mk-label">Categories</div>
+                <div className="mk-chiprow">{mp.categories.map((c,i)=><span className="mk-chip" key={i} style={{background:"var(--amber-soft)",borderColor:"#E9D4B4"}}>{c}</span>)}</div>
+              </>}
+              <div style={{fontSize:11.5,color:"var(--muted)",fontStyle:"italic",marginTop:8}}>Validate keywords in the store's search bar before committing — real autocomplete beats any suggestion.</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="section-head" style={{marginTop:30}}>
+        <div><h2 style={{fontSize:22}}>How would this sell today?</h2><div className="sub">An informed view — not a certain prediction — of where your selling position stands today and the levers most likely to matter. {iSpark} marks anything that uses your API key.</div></div>
+        <button className="btn" disabled={auBusy} onClick={runAudit}>
+          {auBusy? <><span className="spin dark"></span> Assessing…</> : (audit? <>↻ Reassess</> : <>{iSpark} Assess my selling position</>)}
+        </button>
+      </div>
+
+      {audit && (
+        <div className="card">
+          <div className="reading" style={{fontSize:15,lineHeight:1.6,marginBottom:10}}>{audit.readiness}</div>
+          {audit.basis && (
+            <div style={{background:"var(--sage-soft)",border:"1px solid #D7E0E4",borderRadius:8,padding:"8px 11px",marginBottom:10}}>
+              <div className="mono" style={{marginBottom:3}}>How this view was formed</div>
+              <div style={{fontSize:12.5,color:"var(--muted)",lineHeight:1.5}}>{audit.basis}</div>
+            </div>
+          )}
+          {Array.isArray(audit.strengths)&&audit.strengths.length>0 && <>
+            <div className="mono" style={{color:"var(--sage)",margin:"8px 0 4px"}}>Working for you</div>
+            {audit.strengths.map((x,i)=><div key={i} style={{fontSize:13.5,marginBottom:3}}>· {x}</div>)}
+          </>}
+          {Array.isArray(audit.risks)&&audit.risks.length>0 && <>
+            <div className="mono" style={{color:"#B4472F",margin:"10px 0 4px"}}>Honest risks</div>
+            {audit.risks.map((x,i)=><div key={i} style={{fontSize:13.5,marginBottom:3}}>· {x}</div>)}
+          </>}
+          {Array.isArray(audit.levers)&&audit.levers.length>0 && <>
+            <div className="mono" style={{color:"var(--amber)",margin:"10px 0 4px"}}>Your biggest levers</div>
+            {audit.levers.map((l,i)=><div key={i} style={{marginBottom:6}}><b style={{fontWeight:600,fontSize:13.5}}>{l.move}</b><div className="mk-why">{l.impact}</div></div>)}
+          </>}
+        </div>
+      )}
+      {perr && <div className="err">{perr}</div>}
     </div>
   );
 }
@@ -1455,7 +1604,8 @@ function PublishTab({project, upd, setTab}){
 const REVIEW_KINDS = {
   contradiction:{label:"Continuity",   color:"#B4472F"},
   editorial:    {label:"Editorial note",color:"#123A55"},
-  armature:     {label:"Armature drift",color:"#8A6D1F"}
+  armature:     {label:"Armature drift",color:"#8A6D1F"},
+  audience:     {label:"Reader door",  color:"#B9762F"}
 };
 const REVIEW_STATUS = [["open","Open"],["resolved","Resolved"],["backlog","Backlog"],["wontfix","Won't fix"]];
 
@@ -2015,7 +2165,7 @@ function SpineRoadmap({project, upd, ai, openSettings, logReview}){
         <div className="sub" style={{maxWidth:420}}>Fill each beat in your own words. Add, reorder, and reassign chapters and scenes right beneath their beat — this roadmap is the story's home.</div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
           <button className="btn btn-sm" onClick={()=>custom?setCustom(false):startCustomize()}>{custom?"Done customizing":"Customize beats"}</button>
-          <button className="btn btn-sm" disabled={armBusy} onClick={armatureTest}>{armBusy? <><span className="spin dark"></span> Testing…</> : "Armature test"}</button>
+          <button className="btn btn-sm" disabled={armBusy} onClick={armatureTest}>{armBusy? <><span className="spin dark"></span> Testing…</> : <>{iSpark} Armature test</>}</button>
           <button className="btn btn-sm" disabled={busy} onClick={suggestSpine}>
             {busy? <><span className="spin dark"></span> Drafting…</> : <>{iSpark} Suggest a spine</>}
           </button>
@@ -2965,10 +3115,31 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
     ? sections.map(x=>`### ${x.title}\n${x.content||""}`).join("\n\n")
     : (activeDoc?.content||"");
 
+  // Fit the draft into a character budget WITHOUT dropping whole chapters.
+  // In whole-draft mode, if it's too long, take a proportional slice from EACH
+  // chapter so every chapter is represented, and tell the caller it was sampled.
+  function scopedForAI(budget){
+    if(edScope!=="whole"){
+      const t=activeDoc?.content||"";
+      return {text:t.slice(0,budget), truncated:t.length>budget, sampled:false, chapterCount:1};
+    }
+    const drafted = sections.filter(x=>(x.content||"").trim());
+    const full = drafted.map(x=>`### ${x.title}\n${x.content||""}`).join("\n\n");
+    if(full.length<=budget) return {text:full, truncated:false, sampled:false, chapterCount:drafted.length};
+    // too long: give each chapter a fair share of the budget
+    const per = Math.floor((budget - drafted.length*40) / Math.max(1,drafted.length));
+    const parts = drafted.map(x=>{
+      const body=(x.content||"");
+      const take = body.length<=per ? body : body.slice(0,per)+" […section continues…]";
+      return `### ${x.title}\n${take}`;
+    });
+    return {text:parts.join("\n\n"), truncated:true, sampled:true, chapterCount:drafted.length};
+  }
+
   async function getFeedback(){
     if(!ai.ready){ openSettings(); return; }
-    const scopeText = scopedText();
-    if(!scopeText.trim()){ setErr("Write something first."); return; }
+    const S = scopedForAI(60000);
+    if(!S.text.trim()){ setErr("Write something first."); return; }
     if(project.editorFocus.length===0){ setErr("Pick at least one focus for the editor."); return; }
     setErr(""); setEdBusy(true);
     const focusLabels = project.editorFocus.map(id=>FOCUS_OPTIONS.find(f=>f.id===id)?.t).join(", ");
@@ -2990,7 +3161,7 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
       const out = await ai.run({
         maxTokens:1700,
         system:`You are a sharp, warm developmental editor for a ${typeLabel(project.type)}${project.genre?` in the ${project.genre} genre`:""}. ${typeGuidance} You SUGGEST and QUESTION — you never rewrite the author's prose or hand them replacement lines. Point to actual lines by quoting a few words. Be honest but encouraging; the author must stay motivated to finish. Return ONLY a JSON object.`,
-        prompt:`Give editorial notes on ${edScope==="whole"?"this full draft (all "+sections.length+" "+unitName(project.type).toLowerCase()+"s, stitched in order)":"this "+unitName(project.type).toLowerCase()}. Focus ONLY on: ${focusLabels}.${armLens}${readerLens}\n\nReturn: {"strengths":"2-3 genuine strengths to keep, as one warm paragraph","notes":[{"focus":"which focus area","note":"short title of the issue","detail":"what to consider — quote a few words from the text; never rewrite for them","severity":"high|medium|low"}],"oneThing":"the single most valuable revision to make next, one sentence"}\nKeep notes to the 3-7 most valuable.\n\n"""${scopeText.slice(0,9000)}"""${scopeText.length>9000?"\n(Long draft: this is the opening portion — weight structural notes accordingly and say so in a note.)":""}`
+        prompt:`Give editorial notes on ${edScope==="whole"?"this full draft (all "+S.chapterCount+" "+unitName(project.type).toLowerCase()+"s, stitched in order)":"this "+unitName(project.type).toLowerCase()}. Focus ONLY on: ${focusLabels}.${armLens}${readerLens}\n\nReturn: {"strengths":"2-3 genuine strengths to keep, as one warm paragraph","notes":[{"focus":"which focus area","note":"short title of the issue","detail":"what to consider — quote a few words from the text; never rewrite for them","severity":"high|medium|low"}],"oneThing":"the single most valuable revision to make next, one sentence"}\nKeep notes to the 3-7 most valuable${edScope==="whole"?", drawn from across the whole draft — not only the opening "+unitName(project.type).toLowerCase():""}.\n\n"""${S.text}"""${S.sampled?"\n(Long draft: the above is a proportional sample from every "+unitName(project.type).toLowerCase()+" — weight structural notes across the whole arc and say so where relevant.)":""}`
       });
       const j = parseJSON(out);
       if(j && (j.notes || j.strengths)){
@@ -3033,14 +3204,14 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
   async function askEditor(){
     if(!ai.ready){ openSettings(); return; }
     if(!askQ.trim()) return;
-    const scopeText = scopedText();
-    if(!scopeText.trim()){ setErr("Write something first so the editor has pages to read."); return; }
+    const S = scopedForAI(60000);
+    if(!S.text.trim()){ setErr("Write something first so the editor has pages to read."); return; }
     setErr(""); setAskBusy(true); setAskOut("");
     try{
       const out=await ai.run({
         maxTokens:1000,
         system:`You are the author's developmental editor for a ${typeLabel(project.type)}${project.genre?` (${project.genre})`:""}. Answer their question about their own pages: honestly, specifically, quoting at most a few short phrases as evidence. You never rewrite their prose, never supply replacement lines, and never invent story facts — you observe, assess, and question. The story's point (armature): ${project.armature||"(not yet defined)"}.`,
-        prompt:`The author asks about ${edScope==="whole"?"their full draft":"the "+unitName(project.type).toLowerCase()+" they're viewing"}:\n\n"${askQ.trim()}"\n\nTheir pages:\n"""${scopeText.slice(0,8500)}"""${scopeText.length>8500?"\n(Long draft: opening portion shown.)":""}`
+        prompt:`The author asks about ${edScope==="whole"?"their full draft (all "+S.chapterCount+" "+unitName(project.type).toLowerCase()+"s)":"the "+unitName(project.type).toLowerCase()+" they're viewing"}:\n\n"${askQ.trim()}"\n\nTheir pages:\n"""${S.text}"""${S.sampled?"\n(Long draft: this is a proportional sample from every "+unitName(project.type).toLowerCase()+" — consider the whole arc, not just the opening.)":""}`
       });
       setAskOut(out);
     }catch(e){ setErr(e.message==="NO_KEY"?"Add your API key first.":e.message); }
@@ -3049,16 +3220,20 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
 
   const [seatBusy,setSeatBusy]=useState(false);
   const [seatOut,setSeatOut]=useState(null);
+  const [sentDoors,setSentDoors]=useState([]);
   async function readersSeat(){
     if(!ai.ready){ openSettings(); return; }
-    const scopeText=scopedText();
-    if(!scopeText.trim()){ setErr("Write something first — the reader needs pages."); return; }
-    setErr(""); setSeatBusy(true); setSeatOut(null);
+    const S=scopedForAI(60000);
+    if(!S.text.trim()){ setErr("Write something first — the reader needs pages."); return; }
+    setErr(""); setSeatBusy(true); setSeatOut(null); setSentDoors([]);
+    const scopeDesc = edScope==="whole"
+      ? `this full draft — all ${S.chapterCount} ${unitName(project.type).toLowerCase()}${S.chapterCount===1?"":"s"}, stitched in order${S.sampled?" (long draft: you're seeing a proportional sample from every "+unitName(project.type).toLowerCase()+", so weight your read across the whole arc, not just the opening)":""}`
+      : `this ${unitName(project.type).toLowerCase()}`;
     try{
       const out=await ai.run({
         maxTokens:1300,
-        system:`You are a devoted ${project.genre||typeLabel(project.type)} reader describing your honest reading EXPERIENCE — not an editor giving fixes. Rules: describe what you felt and where; never tell the author to conform to convention; treat distinctiveness as an asset; frame every opportunity as a door opening ("what if you leaned further into…"), never a correction. Curiosity and unanswered questions are GOOD — they mean the reader is leaning in. Quote at most a few short phrases. Return ONLY a JSON object.`,
-        prompt:`Read ${edScope==="whole"?"this full draft":"this "+unitName(project.type).toLowerCase()} as a ${project.genre||typeLabel(project.type)} reader.${project.armature?` The author says it's really about: "${project.armature}".`:""}\n\nReturn {"pulling":[{"moment":"where you leaned in","why":"what it did to you as a reader"}],"questions":["questions you're carrying as a reader — signs of engagement, not problems"],"doors":[{"spark":"an opportunity to lean further into what's distinctive here","why":"why a reader would follow"}],"connection":"1-2 sentences: where this story and its reader are meeting most strongly right now"}.\nKeep each list to the 2-4 most alive items.\n\n"""${scopeText.slice(0,8500)}"""`
+        system:`You are a devoted ${project.genre||typeLabel(project.type)} reader describing your honest reading EXPERIENCE — not an editor giving fixes. Rules: describe what you felt and where; never tell the author to conform to convention; treat distinctiveness as an asset; frame every opportunity as a door opening ("what if you leaned further into…"), never a correction. Curiosity and unanswered questions are GOOD — they mean the reader is leaning in. When you name a moment, say which ${unitName(project.type).toLowerCase()} it's in so the author can find it. Quote at most a few short phrases. Return ONLY a JSON object.`,
+        prompt:`Read ${scopeDesc} as a ${project.genre||typeLabel(project.type)} reader.${project.armature?` The author says it's really about: "${project.armature}".`:""}\n\nReturn {"pulling":[{"moment":"where you leaned in — name the ${unitName(project.type).toLowerCase()}","why":"what it did to you as a reader"}],"questions":["questions you're carrying as a reader — signs of engagement, not problems"],"doors":[{"spark":"an opportunity to lean further into what's distinctive here","why":"why a reader would follow"}],"connection":"1-2 sentences: where this story and its reader are meeting most strongly right now"}.\nKeep each list to the 2-4 most alive items${edScope==="whole"?", drawn from across the whole draft — not only the first "+unitName(project.type).toLowerCase():""}.\n\n"""${S.text}"""`
       });
       const j=parseJSON(out);
       if(j&&(j.pulling||j.doors)) setSeatOut(j); else setErr("The reader mumbled — try again.");
@@ -3253,7 +3428,7 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
           : <div>
               <div style={{display:"flex",gap:8,alignItems:"flex-start",flexWrap:"wrap",marginBottom:6}}>
                 <div style={{flex:1,minWidth:220}}><DocPicker items={sections} activeId={current?.id} onPick={setActive} /></div>
-                {sections.length>=1 && <button className={"btn btn-sm"+(readAll?" btn-primary":"")} onClick={()=>setReadAll(v=>!v)}>{readAll?"✎ Back to writing":"📖 Read + links"}</button>}
+                {sections.length>=1 && <button className={"btn btn-sm"+(readAll?" btn-primary":"")} onClick={()=>{ const nv=!readAll; setReadAll(nv); if(nv) setEdScope("whole"); }}>{readAll?"✎ Back to writing":"📖 Read + links"}</button>}
               </div>
               {readAll ? (
                 <div>
@@ -3399,21 +3574,24 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
       {/* AI EDITOR */}
       <div className="editor-panel">
         <h3>AI editor</h3>
-        <div className="ed-sub">Tuned to {typeLabel(project.type).toLowerCase()}. Choose what it should watch for.</div>
+        <div className="ed-sub">Tuned to {typeLabel(project.type).toLowerCase()}. Choose what it should watch for. Buttons marked {iSpark} use your API key (a few cents each).</div>
         <div className="chips">
           {FOCUS_OPTIONS.map(f=>(
             <button key={f.id} className={"chip"+(project.editorFocus.includes(f.id)?" on":"")} onClick={()=>toggleFocus(f.id)}>{f.t}</button>
           ))}
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:8,margin:"0 0 10px"}}>
-          <span className="mono">Scope</span>
-          <select className="world-select" style={{flex:1}} value={edScope} onChange={e=>setEdScope(e.target.value)}>
-            <option value="current">This {unitName(project.type).toLowerCase()} only</option>
-            <option value="whole">Whole draft · {sections.length} {unitName(project.type).toLowerCase()}s stitched</option>
-          </select>
+        <div className="scope-master">
+          <div className="scope-row">
+            <span className="mono" style={{color:"var(--indigo)"}}>Scope</span>
+            <select className="world-select" style={{textOverflow:"ellipsis"}} value={edScope} onChange={e=>setEdScope(e.target.value)}>
+              <option value="current">This {unitName(project.type).toLowerCase()} only — "{current?current.title:"—"}"</option>
+              <option value="whole">Whole draft · {sections.length} {unitName(project.type).toLowerCase()}{sections.length===1?"":"s"} stitched</option>
+            </select>
+          </div>
+          <div className="scope-note">Applies to <b>everything below</b> — editorial notes, Ask the editor, and the reader's seat all read the scope you set here.</div>
         </div>
         <button className="btn btn-red" style={{width:"100%"}} disabled={edBusy} onClick={getFeedback}>
-          {edBusy? <><span className="spin"></span> Reading your pages…</> : "Get editorial notes"}
+          {edBusy? <><span className="spin"></span> Reading {edScope==="whole"?"your whole draft":"this "+unitName(project.type).toLowerCase()}…</> : <>{iSpark} Get editorial notes</>}
         </button>
         {project.editorOut && (typeof project.editorOut==="string"
           ? <div className="ed-out">{project.editorOut}</div>
@@ -3435,7 +3613,7 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
           <textarea className="write-area small" style={{minHeight:56,fontSize:14}} value={askQ} onChange={e=>setAskQ(e.target.value)}
             placeholder={'e.g. "Does the middle drag?" or "Is the protagonist\'s motivation clear here?"'} />
           <button className="btn" style={{width:"100%",marginTop:8}} disabled={askBusy||!askQ.trim()} onClick={askEditor}>
-            {askBusy? <><span className="spin dark"></span> Reading…</> : "Ask"}
+            {askBusy? <><span className="spin dark"></span> Reading…</> : <>{iSpark} Ask</>}
           </button>
           {askOut && <div className="ed-out">{askOut}</div>}
         </div>
@@ -3444,7 +3622,7 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
           <h3 style={{fontSize:15}}>The reader's seat</h3>
           <div className="ed-sub">A {project.genre||typeLabel(project.type)} reader describes their experience of your pages — where they lean in, what they're curious about, and doors worth opening. Never "fit the market"; always "here's what's alive."</div>
           <button className="btn" style={{width:"100%"}} disabled={seatBusy} onClick={readersSeat}>
-            {seatBusy? <><span className="spin dark"></span> Reading as your reader…</> : "Take the reader's seat"}
+            {seatBusy? <><span className="spin dark"></span> Reading as your reader…</> : <>{iSpark} Take the reader's seat</>}
           </button>
           {seatOut && (
             <div className="ed-out" style={{whiteSpace:"normal"}}>
@@ -3459,7 +3637,11 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
               </>}
               {Array.isArray(seatOut.doors)&&seatOut.doors.length>0 && <>
                 <div className="mono" style={{margin:"10px 0 4px",color:"var(--amber)"}}>Doors worth opening</div>
-                {seatOut.doors.map((d,i)=><div key={i} style={{marginBottom:6}}><b style={{fontWeight:600}}>{d.spark}</b><div style={{fontSize:12.5,color:"var(--muted)"}}>{d.why}</div></div>)}
+                {seatOut.doors.map((d,i)=><div key={i} style={{marginBottom:6}}><b style={{fontWeight:600}}>{d.spark}</b><div style={{fontSize:12.5,color:"var(--muted)"}}>{d.why}</div>
+                  {logReview && (sentDoors.includes(i)
+                    ? <span className="mono" style={{fontSize:9,color:"var(--sage)"}}>✓ tracked in Review</span>
+                    : <button className="btn btn-ghost btn-sm" style={{padding:"1px 8px",fontSize:11,marginTop:2}} onClick={()=>{ logReview([{kind:"audience", severity:"low", text:(d.spark||"Reader door").slice(0,90), detail:d.why, where: edScope==="whole"?"whole draft":(activeDoc?activeDoc.title:"")}]); setSentDoors(s=>[...s,i]); }}>+ Track in Review</button>)}
+                </div>)}
               </>}
               <div style={{fontSize:11.5,color:"var(--muted)",fontStyle:"italic",marginTop:8}}>These are invitations, not instructions — your story leads, the audience follows.</div>
             </div>
@@ -3470,7 +3652,7 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
           <h3 style={{fontSize:15}}>Continuity check</h3>
           <div className="ed-sub">Flags contradictions against your characters, world, and other chapters. It flags — you decide.</div>
           <button className="btn" style={{width:"100%"}} disabled={flagBusy} onClick={consistencyCheck}>
-            {flagBusy? <><span className="spin dark"></span> Cross-checking…</> : "Check for contradictions"}
+            {flagBusy? <><span className="spin dark"></span> Cross-checking…</> : <>{iSpark} Check for contradictions</>}
           </button>
           {flags!==null && (flags.length===0
             ? <div className="reading" style={{fontSize:14,color:"var(--sage)",marginTop:10}}>No contradictions found against what's on record. ✓</div>
@@ -3534,7 +3716,7 @@ function ExportModal({project, close}){
 function SettingsModal({settings, setSettings, close, onBackup, onRestore}){
   const [key, setKey] = useState(settings.apiKey);
   const [model, setModel] = useState(settings.model);
-  const [font, setFont] = useState(settings.font||"serif");
+  const [font, setFont] = useState(settings.font||"sans");
   const restoreRef = React.useRef(null);
   const [msg, setMsg] = useState("");
   return (
