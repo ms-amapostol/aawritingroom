@@ -2,7 +2,7 @@
 
 *A free, private space to organize, sharpen, and finish your story — without ever handing the writing over to AI.*
 
-**[→ Open the Writing Room](https://ms-amapostol.github.io/aawritingroom/)** *(update this link once your GitHub Pages URL is live)*
+**[→ Open the Writing Room](https://ms-amapostol.github.io/aawritingroom/)**
 
 ---
 
