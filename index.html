@@ -402,6 +402,16 @@
   .modal label{font-size:13px;font-weight:500;display:block;margin-bottom:6px;}
   .modal input, .modal select{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:14px;margin-bottom:14px;}
   .privacy{font-size:11.5px;color:var(--muted);background:var(--sage-soft);border-radius:8px;padding:10px 12px;line-height:1.5;}
+  .keyhelp{margin:-6px 0 14px;}
+  .keyhelp summary{cursor:pointer;font-size:12.5px;color:var(--indigo);font-weight:500;list-style:none;user-select:none;}
+  .keyhelp summary::-webkit-details-marker{display:none;}
+  .keyhelp summary:hover{text-decoration:underline;}
+  .keyhelp[open] summary{margin-bottom:8px;}
+  .keyhelp-body{font-size:12.5px;color:var(--ink);line-height:1.55;background:var(--indigo-soft);border:1px solid #c9e3e0;border-radius:10px;padding:12px 14px;}
+  .keyhelp-body p{margin:0 0 8px;}
+  .keyhelp-body ol{margin:0 0 8px;padding-left:20px;}
+  .keyhelp-body li{margin-bottom:6px;}
+  .keyhelp-note{font-size:11.5px;color:var(--muted);border-top:1px solid #c9e3e0;padding-top:8px;margin-top:2px!important;}
   .key-status{font-size:12px;display:inline-flex;align-items:center;gap:6px;color:var(--muted);}
   .key-dot{width:8px;height:8px;border-radius:50%;background:#c9c2b3;}
   .key-dot.on{background:#4f9d6b;}
@@ -3734,6 +3744,20 @@ function SettingsModal({settings, setSettings, close, onBackup, onRestore}){
         <p className="m">Your Writing Room uses your own Anthropic API key for every AI feature.</p>
         <label>Anthropic API key</label>
         <input type="password" value={key} onChange={e=>setKey(e.target.value)} placeholder="sk-ant-..." />
+        <details className="keyhelp">
+          <summary>New to this? How to get your own key →</summary>
+          <div className="keyhelp-body">
+            <p>Every AI feature here runs on <b>your own</b> Anthropic key, so you pay Anthropic directly for what you use — usually just a few cents per request — and your writing never passes through anyone else's server. It takes about five minutes to set up:</p>
+            <ol>
+              <li>Go to <b>console.anthropic.com</b> and sign in (or create a free account with your email or Google).</li>
+              <li>Open <b>Settings → Billing</b> and add a payment method. <i>Don't skip this</i> — a key won't work until billing is set up, and it's the most common reason a new key fails.</li>
+              <li>Open <b>Settings → API keys</b>, click <b>Create Key</b>, and give it a name like "Writing Room."</li>
+              <li><b>Copy the key right away</b> — Anthropic shows it only once. It starts with <span className="mono" style={{textTransform:"none"}}>sk-ant-</span>.</li>
+              <li>Paste it into the box above. That's it — you're set.</li>
+            </ol>
+            <p className="keyhelp-note">Good to know: an Anthropic API account is <b>separate</b> from a Claude Pro/Max subscription — a subscription doesn't include API access, and vice versa. You can also set a monthly spending cap in the console if you'd like a hard limit on cost. New accounts sometimes get a small free credit to start.</p>
+          </div>
+        </details>
         <label>Model</label>
         <select value={model} onChange={e=>setModel(e.target.value)}>
           <option value="claude-sonnet-4-6">Claude Sonnet 4.6 — balanced (recommended)</option>
