@@ -966,6 +966,14 @@ function App(){
 
   // ---- Backup / restore: the whole library to a portable .json file ----
   const backupAll = ()=>{
+    const ok = window.confirm(
+      "Before you back up — a quick reminder:\n\n"+
+      "This file becomes the master copy. When you import it on another device, "+
+      "the newest version of each project wins, so finish your edits on THIS device first.\n\n"+
+      "Tip: finish a writing session on one device before switching to another — hand off, don't edit the same project in two places at once.\n\n"+
+      "Ready to download the backup?"
+    );
+    if(!ok) return;
     const payload = { app:"anastasias-writing-room", version:1, exported:new Date().toISOString(), projects };
     const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
     const url = URL.createObjectURL(blob);
@@ -985,8 +993,36 @@ function App(){
         if(mode==="replace"){
           setProjects(incoming.map(norm));
         }else{
-          // merge: incoming projects get fresh ids so nothing is overwritten
-          setProjects(list=>[...list, ...incoming.map(p=>norm({...p, id:uid(), title:(p.title||"Untitled")+" (restored)"}))]);
+          // smart merge: match incoming projects to existing ones BY TITLE.
+          // Whichever side was edited more recently (by `updated`) becomes the live project.
+          // The older side is never silently discarded — it's kept as a clearly-labeled
+          // backup copy, since "more recently touched" isn't always "more complete"
+          // (e.g. new characters added on one device, new pages written on another).
+          const norm2 = (p)=>({...norm(p), id:uid()});
+          const keyOf = (t)=>(t||"Untitled").trim().toLowerCase();
+          setProjects(current=>{
+            let result=[...current];
+            const usedCurrentIds=new Set();
+            incoming.forEach(raw=>{
+              const inc = norm2(raw);
+              const k = keyOf(inc.title);
+              const matchIdx = result.findIndex((p,i)=>!usedCurrentIds.has(p.id) && keyOf(p.title)===k);
+              if(matchIdx===-1){
+                // no title match on this device — just add it as a new project
+                result.push(inc);
+              }else{
+                const existing=result[matchIdx];
+                usedCurrentIds.add(existing.id);
+                const existingNewer = (existing.updated||0) >= (inc.updated||0);
+                const winner = existingNewer ? existing : inc;
+                const loser  = existingNewer ? inc : existing;
+                const loserCopy = {...loser, id:uid(), title:(loser.title||"Untitled")+" (backup copy, "+new Date(loser.updated||Date.now()).toLocaleDateString()+")"};
+                result[matchIdx] = winner;
+                result.push(loserCopy);
+              }
+            });
+            return result;
+          });
         }
         done && done(null, incoming.length);
       }catch(e){ done && done(e.message||"Couldn't read that file."); }
@@ -1174,7 +1210,7 @@ function Dashboard({projects, open, onNew, onDelete, onBackup, onRestore, awayDa
           <button className="btn btn-sm btn-ghost" onClick={()=>restoreRef.current&&restoreRef.current.click()} title="Restore from a backup file">↑ Restore</button>
           <input ref={restoreRef} type="file" accept="application/json,.json" style={{display:"none"}} onChange={e=>{
             const f=e.target.files[0]; if(!f) return;
-            const merge = projects.length>0 ? window.confirm("Restore from backup.\n\nOK = MERGE (add these projects alongside your current ones, safest)\nCancel = REPLACE (wipe current projects and load only the backup)") : false;
+            const merge = projects.length>0 ? window.confirm("Restore from backup.\n\nOK = SMART MERGE (recommended): for any project you already have, the newer version wins and the older is kept as a labeled backup copy. Projects only on this device are untouched; projects only in the file are added.\n\nCancel = REPLACE: wipe everything here and load only the backup. Any project that exists only on this device will be lost.") : false;
             onRestore(f, merge?"merge":"replace", (err,n)=>{
               setRestoreMsg(err? "⚠ "+err : `✓ Restored ${n} project${n===1?"":"s"}.`);
               setTimeout(()=>setRestoreMsg(""), 5000);
@@ -3780,14 +3816,14 @@ function SettingsModal({settings, setSettings, close, onBackup, onRestore}){
           <div style={{borderTop:"1px solid var(--line)",marginTop:14,paddingTop:14}}>
             <label style={{marginTop:0}}>Your writing — backup &amp; restore</label>
             <div style={{fontSize:12.5,color:"var(--muted)",lineHeight:1.5,marginBottom:10}}>
-              Everything you write lives in <b>this browser only</b>. Clearing browser data, switching devices, or switching browsers will not carry it over. Download a backup regularly — it's the only copy.
+              Everything you write lives in <b>this browser only</b>. Clearing browser data, switching devices, or switching browsers won't carry it over on its own — so download a backup regularly; it's the only copy. <b>Working across devices?</b> Finish your session on one device, back up, then import that file on the other — the newer version of each project wins, and anything unique to a device is kept. Just avoid editing the same project in two places at once.
             </div>
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               <button className="btn btn-sm" onClick={onBackup}>↓ Back up all projects</button>
               <button className="btn btn-sm" onClick={()=>restoreRef.current&&restoreRef.current.click()}>↑ Restore from backup</button>
               <input ref={restoreRef} type="file" accept="application/json,.json" style={{display:"none"}} onChange={e=>{
                 const f=e.target.files[0]; if(!f) return;
-                const merge = window.confirm("Restore from backup.\n\nOK = MERGE (add alongside current projects, safest)\nCancel = REPLACE (wipe current and load only the backup)");
+                const merge = window.confirm("Restore from backup.\n\nOK = SMART MERGE (recommended): for any project you already have, the newer version wins and the older is kept as a labeled backup copy. Projects only on this device are untouched; projects only in the file are added.\n\nCancel = REPLACE: wipe everything here and load only the backup. Any project that exists only on this device will be lost.");
                 onRestore(f, merge?"merge":"replace", (err,n)=>{ setMsg(err?"⚠ "+err:`✓ Restored ${n} project${n===1?"":"s"}.`); setTimeout(()=>setMsg(""),5000); });
                 e.target.value="";
               }} />
