@@ -293,6 +293,16 @@
   /* welcome back */
   .welcome-back{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:linear-gradient(180deg,var(--amber-soft),#F6EDDD);border:1px solid #E9D4B4;border-radius:12px;padding:14px 16px;margin-bottom:16px;font-size:14px;line-height:1.55;}
   .welcome-back .btn{flex-shrink:0;margin-left:auto;}
+  .protip{display:flex;align-items:flex-start;gap:9px;font-size:12.5px;color:var(--muted);line-height:1.5;padding:8px 2px 14px;border-bottom:1px solid var(--line);margin-bottom:14px;}
+  .protip-mark{color:var(--amber);flex-shrink:0;margin-top:1px;}
+  .protip-text{flex:1;}
+  .protip-x{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;line-height:1;padding:0 2px;flex-shrink:0;opacity:.55;}
+  .protip-x:hover{opacity:1;}
+  .session-nudge{display:flex;align-items:center;gap:11px;max-width:1180px;margin:0 auto;padding:11px 24px;background:linear-gradient(180deg,var(--amber-soft),#F6EDDD);border-bottom:1px solid #E9D4B4;font-size:13px;line-height:1.45;animation:nudgein .35s ease;}
+  .session-nudge.import{background:linear-gradient(180deg,var(--indigo-soft),#E7F1EF);border-bottom-color:#c9e3e0;}
+  .session-nudge-text{flex:1;color:var(--ink);}
+  .session-nudge .btn{flex-shrink:0;}
+  @keyframes nudgein{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
   /* publish tab */
   .pub-step{display:flex;gap:12px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:8px;box-shadow:var(--shadow);}
   .pub-step.done{opacity:.72;}
@@ -981,6 +991,9 @@ function App(){
     const stamp = new Date().toISOString().slice(0,10);
     a.href=url; a.download=`writing-room-backup-${stamp}.json`; a.click();
     setTimeout(()=>URL.revokeObjectURL(url), 1000);
+    const totalWords = projects.reduce((s,p)=>s+wordCountOf(p),0);
+    store.set("ss_lastbackup", {time:Date.now(), words:totalWords});
+    store.set("ss_pending_leave_nudge", null);
   };
   const restoreAll = (file, mode, done)=>{
     const r = new FileReader();
@@ -1047,6 +1060,57 @@ function App(){
     return last ? Math.floor((Date.now()-last)/86400000) : 0;
   });
 
+  // Session snapshot: total words at load, so we can tell how much was written THIS session.
+  const sessionStartWords = React.useRef(null);
+  useEffect(()=>{
+    if(sessionStartWords.current===null){
+      sessionStartWords.current = projects.reduce((s,p)=>s+wordCountOf(p),0);
+    }
+  }); // runs after first render, once projects are hydrated
+
+  // Session-end backup nudge: when the person moves to leave (tab switch / background)
+  // AND they've written a meaningful amount this session AND it isn't already backed up.
+  const [leaveNudge, setLeaveNudge] = useState(false);
+  useEffect(()=>{
+    const onHide = ()=>{
+      if(document.visibilityState!=="hidden") return;
+      const start = sessionStartWords.current;
+      if(start===null) return;
+      const now = projects.reduce((s,p)=>s+wordCountOf(p),0);
+      const writ = now - start;
+      const last = store.get("ss_lastbackup", null);
+      const backedUpAfter = last && last.words>=now; // already captured this much
+      if(writ>=250 && !backedUpAfter){
+        // remember for when they come back into view
+        store.set("ss_pending_leave_nudge", {words:writ, at:Date.now()});
+      }
+    };
+    document.addEventListener("visibilitychange", onHide);
+    return ()=>document.removeEventListener("visibilitychange", onHide);
+  }, [projects]);
+
+  // On becoming visible again (or on load), surface a pending leave-nudge once.
+  useEffect(()=>{
+    const check=()=>{
+      if(document.visibilityState!=="visible") return;
+      const pend = store.get("ss_pending_leave_nudge", null);
+      if(pend) setLeaveNudge(pend);
+    };
+    check();
+    document.addEventListener("visibilitychange", check);
+    return ()=>document.removeEventListener("visibilitychange", check);
+  }, []);
+  const dismissLeaveNudge = ()=>{ store.set("ss_pending_leave_nudge", null); setLeaveNudge(false); };
+
+  // Occasional arrival import nudge: every ~5 days, if they have projects, ask once
+  // whether they've got newer work to bring in from another device.
+  const [importNudge, setImportNudge] = useState(()=>{
+    const lastAsked = store.get("ss_import_asked", 0);
+    const enoughGap = (Date.now()-lastAsked) > 5*86400000;
+    return enoughGap; // decided once at load; shown only if they also have projects
+  });
+  const dismissImportNudge = ()=>{ store.set("ss_import_asked", Date.now()); setImportNudge(false); };
+
   return (
     <div className={"app font-"+(settings.font||"sans")}>
       <div className="topbar">
@@ -1065,6 +1129,24 @@ function App(){
           <button className="btn btn-sm" onClick={()=>setShowSettings(true)}>{iGear} Settings</button>
         </div>
       </div>
+
+      {leaveNudge && (
+        <div className="session-nudge">
+          <span className="protip-mark">✦</span>
+          <span className="session-nudge-text">You wrote about {leaveNudge.words.toLocaleString()} word{leaveNudge.words===1?"":"s"} last session. If you're switching devices, back up first so the newest version travels with you.</span>
+          <button className="btn btn-primary btn-sm" onClick={()=>{ backupAll(); dismissLeaveNudge(); }}>↓ Back up</button>
+          <button className="protip-x" onClick={dismissLeaveNudge} title="Dismiss">×</button>
+        </div>
+      )}
+
+      {importNudge && projects.length>0 && !project && !newFlow && (
+        <div className="session-nudge import">
+          <span className="protip-mark">↑</span>
+          <span className="session-nudge-text">Been writing on another device? Import your latest backup to bring it in — newer versions win, and nothing here gets lost.</span>
+          <button className="btn btn-sm" onClick={()=>{ dismissImportNudge(); const el=document.getElementById("dash-restore-input"); if(el) el.click(); }}>↑ Import</button>
+          <button className="protip-x" onClick={dismissImportNudge} title="Dismiss">×</button>
+        </div>
+      )}
 
       {project
         ? <Workspace project={project} upd={upd} ai={ai} openSettings={()=>setShowSettings(true)} />
@@ -1118,6 +1200,54 @@ function downloadProgressCard(p){
 }
 
 /* ---------------- DASHBOARD ---------------- */
+// Evergreen app tips — rotate through these when there's no timely signal to show instead.
+const PRO_TIPS = [
+  "Set the AI editor's Scope to \"Whole draft\" before taking the reader's seat or asking a big-picture question — it'll read every chapter, not just the one you're viewing.",
+  "The Publish tab's readiness score is a compass, not a gate. Plenty of beloved books shipped \"unready\" by every measure.",
+  "\"Find a line worth keeping\" only ever quotes your own words back to you — it never rewrites. Good for a quick morale boost mid-draft.",
+  "You can drag a chapter's beat suggestion straight into Outline without leaving the Writing tab — look for the Apply card.",
+  "Reader's Seat doors are invitations, not fixes. Use \"+ Track in Review\" only on the ones that genuinely spark something.",
+  "Genre and armature (what the story's really about) sharpen almost every AI feature in this room — worth filling in early, even roughly.",
+  "A milestone toast only fires once per threshold, ever — so if you missed one, it already did its job quietly in the background.",
+];
+function proTipOf(projects){
+  const last = store.get("ss_lastbackup", null);
+  const totalWords = projects.reduce((s,p)=>s+wordCountOf(p),0);
+  const daysSince = last ? Math.floor((Date.now()-last.time)/86400000) : Infinity;
+  const wordsSince = last ? Math.max(0, totalWords-last.words) : totalWords;
+  // Surface the backup nudge only when there's real, sizeable unprotected work AND
+  // enough time has passed that a device switch is plausible — not on a rigid timer.
+  if(projects.length>0 && daysSince>=3 && wordsSince>=400){
+    // ID escalates as the situation grows more urgent, so dismissing it now doesn't
+    // silence it forever — it returns once meaningfully more work has piled up or
+    // more days have passed. Buckets keep it from re-nagging on every small change.
+    const wordBucket = Math.floor(wordsSince/500);      // re-surfaces roughly every 500 new words
+    const dayBucket = last ? Math.floor(daysSince/3) : 0; // and roughly every 3 further days
+    return {
+      id:`backup-${last?last.time:"never"}-${dayBucket}-${wordBucket}`,
+      text: last
+        ? `You've written about ${wordsSince.toLocaleString()} words across your projects since your last backup, ${daysSince} day${daysSince===1?"":"s"} ago. Worth a quick ↓ Back up — especially before switching devices.`
+        : `You have ${wordsSince.toLocaleString()} words of writing that's never been backed up. A ↓ Back up takes a few seconds and it's the only copy that leaves this browser.`
+    };
+  }
+  // Otherwise: a calm, deterministic rotation through evergreen tips (changes daily, not on every render).
+  const dayIndex = Math.floor(Date.now()/86400000) % PRO_TIPS.length;
+  return {id:"tip-"+dayIndex, text:PRO_TIPS[dayIndex]};
+}
+function ProTipStrip({projects}){
+  const tip = proTipOf(projects);
+  const [dismissedId, setDismissedId] = useState(()=>store.get("ss_protip_dismissed", null));
+  if(dismissedId===tip.id) return null;
+  const dismiss=()=>{ store.set("ss_protip_dismissed", tip.id); setDismissedId(tip.id); };
+  return (
+    <div className="protip">
+      <span className="protip-mark">✦</span>
+      <span className="protip-text">{tip.text}</span>
+      <button className="protip-x" onClick={dismiss} title="Dismiss">×</button>
+    </div>
+  );
+}
+
 function GettingStarted(){
   const [open,setOpen]=useState(()=>!store.get("ss_gs_dismissed", false));
   if(!open) return null;
@@ -1208,7 +1338,7 @@ function Dashboard({projects, open, onNew, onDelete, onBackup, onRestore, awayDa
         <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
           {projects.length>0 && <button className="btn btn-sm btn-ghost" onClick={onBackup} title="Download all your projects as a backup file">↓ Back up</button>}
           <button className="btn btn-sm btn-ghost" onClick={()=>restoreRef.current&&restoreRef.current.click()} title="Restore from a backup file">↑ Restore</button>
-          <input ref={restoreRef} type="file" accept="application/json,.json" style={{display:"none"}} onChange={e=>{
+          <input ref={restoreRef} id="dash-restore-input" type="file" accept="application/json,.json" style={{display:"none"}} onChange={e=>{
             const f=e.target.files[0]; if(!f) return;
             const merge = projects.length>0 ? window.confirm("Restore from backup.\n\nOK = SMART MERGE (recommended): for any project you already have, the newer version wins and the older is kept as a labeled backup copy. Projects only on this device are untouched; projects only in the file are added.\n\nCancel = REPLACE: wipe everything here and load only the backup. Any project that exists only on this device will be lost.") : false;
             onRestore(f, merge?"merge":"replace", (err,n)=>{
@@ -1232,6 +1362,8 @@ function Dashboard({projects, open, onNew, onDelete, onBackup, onRestore, awayDa
       ); })()}
 
       <div className="manifesto">This room helps you organize, sharpen, and finish your story — it never writes or changes it. Every word and decision stays yours.</div>
+
+      <ProTipStrip projects={projects} />
 
       <GettingStarted />
 
