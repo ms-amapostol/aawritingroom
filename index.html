@@ -347,8 +347,8 @@
   .copybox textarea:focus{outline:none;}
 
   /* layout cols */
-  .split{display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:start;}
-  @media(max-width:860px){.split{grid-template-columns:1fr;} .choice-grid,.choice-grid.three{grid-template-columns:1fr;}}
+  .split{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start;}
+  @media(max-width:980px){.split{grid-template-columns:1fr;} .choice-grid,.choice-grid.three{grid-template-columns:1fr;}}
   .section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap;}
   .section-head h2{font-size:22px;margin:0;}
   .section-head .sub{color:var(--muted);font-size:13px;}
@@ -1068,22 +1068,25 @@ function App(){
     }
   }); // runs after first render, once projects are hydrated
 
-  // Session-end backup nudge: when the person moves to leave (tab switch / background)
-  // AND they've written a meaningful amount this session AND it isn't already backed up.
+  // Session-end backup nudge. Fires ONLY when all three are true:
+  //   (1) the person is leaving — tab switch / app backgrounded (visibilitychange → hidden)
+  //   (2) they've written a meaningful amount this session (>= 500 words)
+  //   (3) there isn't a RECENT backup that already covers this work
   const [leaveNudge, setLeaveNudge] = useState(false);
   useEffect(()=>{
     const onHide = ()=>{
-      if(document.visibilityState!=="hidden") return;
+      if(document.visibilityState!=="hidden") return;          // (1) only on leave
       const start = sessionStartWords.current;
       if(start===null) return;
       const now = projects.reduce((s,p)=>s+wordCountOf(p),0);
       const writ = now - start;
+      if(writ < 500) return;                                     // (2) meaningful volume
       const last = store.get("ss_lastbackup", null);
-      const backedUpAfter = last && last.words>=now; // already captured this much
-      if(writ>=250 && !backedUpAfter){
-        // remember for when they come back into view
-        store.set("ss_pending_leave_nudge", {words:writ, at:Date.now()});
-      }
+      const recentlyBackedUp = last
+        && last.words >= now                                     // captured at least this much work
+        && (Date.now() - last.time) < 30*60*1000;                // within the last 30 minutes
+      if(recentlyBackedUp) return;                               // (3) skip if freshly backed up
+      store.set("ss_pending_leave_nudge", {words:writ, at:Date.now()});
     };
     document.addEventListener("visibilitychange", onHide);
     return ()=>document.removeEventListener("visibilitychange", onHide);
