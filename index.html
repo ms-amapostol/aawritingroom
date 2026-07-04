@@ -293,9 +293,9 @@
   /* welcome back */
   .welcome-back{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:linear-gradient(180deg,var(--amber-soft),#F6EDDD);border:1px solid #E9D4B4;border-radius:12px;padding:14px 16px;margin-bottom:16px;font-size:14px;line-height:1.55;}
   .welcome-back .btn{flex-shrink:0;margin-left:auto;}
-  .protip{display:flex;align-items:flex-start;gap:9px;font-size:12.5px;color:var(--muted);line-height:1.5;padding:8px 2px 14px;border-bottom:1px solid var(--line);margin-bottom:14px;}
+  .protip{display:flex;align-items:center;justify-content:center;gap:9px;font-size:12.5px;color:var(--muted);line-height:1.5;max-width:720px;margin:20px auto 0;padding:12px 20px 0;border-top:1px solid var(--line);}
   .protip-mark{color:var(--amber);flex-shrink:0;margin-top:1px;}
-  .protip-text{flex:1;}
+  .protip-text{flex:1;text-align:center;}
   .protip-x{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;line-height:1;padding:0 2px;flex-shrink:0;opacity:.55;}
   .protip-x:hover{opacity:1;}
   .session-nudge{display:flex;align-items:center;gap:11px;max-width:1180px;margin:0 auto;padding:11px 24px;background:linear-gradient(180deg,var(--amber-soft),#F6EDDD);border-bottom:1px solid #E9D4B4;font-size:13px;line-height:1.45;animation:nudgein .35s ease;}
@@ -1159,6 +1159,8 @@ function App(){
       {showExport && project && <ExportModal project={project} close={()=>setShowExport(false)} />}
       {showWelcome && <WelcomeModal onClose={dismissWelcome} />}
 
+      <ProTipStrip projects={projects} />
+
       <footer className="room-footer">
         <span>Made with care by Anastasia · <a href={LINKEDIN_URL} target="_blank" rel="noopener">LinkedIn</a></span>
         {SUPPORT_URL
@@ -1362,8 +1364,6 @@ function Dashboard({projects, open, onNew, onDelete, onBackup, onRestore, awayDa
       ); })()}
 
       <div className="manifesto">This room helps you organize, sharpen, and finish your story — it never writes or changes it. Every word and decision stays yours.</div>
-
-      <ProTipStrip projects={projects} />
 
       <GettingStarted />
 
