@@ -375,18 +375,28 @@
   .ds-icon.on{color:var(--indigo);background:var(--indigo-soft);}
   .desk-more{border:1px solid var(--line);border-top:none;border-radius:0 0 12px 12px;background:var(--panel);padding:16px;}
   .sheet{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:40px 26px 30px;box-shadow:var(--shadow);margin-top:18px;}
-  .sheet .page{max-width:34rem;margin:0 auto;}
-  .sheet .write-area{border:none;background:none;padding:0;min-height:430px;resize:none;}
+  .sheet .page{max-width:44rem;margin:0 auto;}
+  .sheet.pw-comfy .page{max-width:36rem;}
+  .sheet.pw-wide  .page{max-width:52rem;}
+  .sheet.pw-full  .page{max-width:none;}
+  .sheet .write-area{border:none;background:none;padding:0;min-height:430px;resize:none;overflow:hidden;}
   .sheet .write-area:focus{outline:none;border:none;box-shadow:none;}
-  .sheet .sh-title{display:flex;align-items:center;gap:8px;max-width:34rem;margin:0 auto 18px;}
+  .sheet .sh-title{display:flex;align-items:center;gap:8px;max-width:44rem;margin:0 auto 18px;}
+  .sheet.pw-comfy .sh-title{max-width:36rem;}
+  .sheet.pw-wide  .sh-title{max-width:52rem;}
+  .sheet.pw-full  .sh-title{max-width:none;}
   .sheet .sh-title input{font-family:'Fraunces';font-size:19px;border:none;background:none;padding:0;}
   .sheet .sh-wc{max-width:34rem;margin:16px auto 0;font-size:11px;color:var(--muted);font-family:'IBM Plex Mono';}
   .wf-serif .write-area{font-family:'Newsreader',Georgia,serif !important;font-size:18px;line-height:1.85;letter-spacing:0 !important;}
   .wf-sans  .write-area{font-family:'Inter',system-ui,sans-serif !important;font-size:16.5px;line-height:1.8;letter-spacing:0 !important;}
   .wf-type  .write-area{font-family:'IBM Plex Mono',monospace !important;font-size:14.5px;line-height:1.85;letter-spacing:-.04em !important;}
-  body.focusing .topbar,body.focusing .tabs,body.focusing .footer,body.focusing .hide-in-focus{display:none !important;}
+  body.focusing .topbar,body.focusing .tabs,body.focusing .footer,body.focusing .hide-in-focus,
+  body.focusing .session-nudge,body.focusing .celebrate{display:none !important;}
   body.focusing .split{grid-template-columns:minmax(0,1fr) !important;}
-  body.focusing .sheet{border-color:transparent;box-shadow:none;}
+  body.focusing .app{max-width:none;}
+  body.focusing .content{padding:0;}
+  body.focusing .desk-status{position:sticky;top:0;z-index:40;background:var(--paper);padding:10px 34px 10px;}
+  body.focusing .sheet{border:none;border-radius:0;box-shadow:none;margin-top:0;min-height:calc(100vh - 46px);padding:54px 46px 90px;}
 
   /* cards */
   .card{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow);}
@@ -3588,12 +3598,17 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
   const [flagBusy, setFlagBusy] = useState(false);
   const [readAll, setReadAll] = useState(false);
   const [writeFont, setWriteFont] = useState(()=>store.get("ss_writefont","serif"));
+  const [pageWidth, setPageWidth] = useState(()=>store.get("ss_pagewidth","wide"));
+  const pickWidth = w => { setPageWidth(w); store.set("ss_pagewidth", w); };
+  const pageRef = useRef(null);
+  const growPage = () => { const el=pageRef.current; if(el){ el.style.height="auto"; el.style.height=Math.max(430, el.scrollHeight+4)+"px"; } };
   const [focusing, setFocusing] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const pickFont = f => { setWriteFont(f); store.set("ss_writefont", f); };
   useEffect(()=>{ document.body.classList.toggle("focusing", focusing);
     return ()=>document.body.classList.remove("focusing"); },[focusing]);
+  useEffect(()=>{ growPage(); });
   useEffect(()=>{ const h=e=>{ if(e.key==="Escape") setFocusing(false); };
     window.addEventListener("keydown",h); return ()=>window.removeEventListener("keydown",h); },[]);
   const [edScope, setEdScope] = useState("current");
@@ -3928,6 +3943,11 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
                 <button key={f} className={writeFont===f?"on":""} onClick={()=>pickFont(f)}>{l}</button>
               ))}
             </div>
+            <div className="ds-fonts" title="How wide the page runs">
+              {[["comfy","▐▐"],["wide","▐▐▐"],["full","▐▐▐▐"]].map(([w,l])=>(
+                <button key={w} className={pageWidth===w?"on":""} onClick={()=>pickWidth(w)} style={{letterSpacing:"-2px"}}>{l}</button>
+              ))}
+            </div>
             <button className={"ds-icon"+(toolsOpen?" on":"")} title="Writing tools" onClick={()=>setToolsOpen(v=>!v)}>✦</button>
             <button className={"ds-icon"+(focusing?" on":"")} title="Focus mode \u2014 Esc to leave" onClick={()=>setFocusing(v=>!v)}>⤡</button>
             <button className={"ds-icon hide-in-focus"+(moreOpen?" on":"")} title="Chapters, importing, formatting" onClick={()=>setMoreOpen(v=>!v)}>⋯</button>
@@ -4020,7 +4040,7 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
                   <div className="wc">{sections.reduce((n,x)=>n+((x.content||"").trim()? x.content.trim().split(/\s+/).length:0),0).toLocaleString()} words total · character names link to their cards</div>
                 </div>
               ) : current && <>
-                <div className={"sheet wf-"+writeFont}>
+                <div className={"sheet wf-"+writeFont+" pw-"+pageWidth}>
                   <div className="sh-title">
                     <input value={current.title} onChange={e=>editSection(current.id,{title:e.target.value})} placeholder="Untitled" />
                     <select value={kindOf(current)} onChange={e=>editSection(current.id,{kind:e.target.value})}
@@ -4030,8 +4050,8 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
                     </select>
                   </div>
                   <div className="page">
-                    <textarea className="write-area" value={current.content}
-                      onChange={e=>editSection(current.id,{content:e.target.value})}
+                    <textarea ref={pageRef} className="write-area" value={current.content}
+                      onChange={e=>{editSection(current.id,{content:e.target.value}); growPage();}}
                       placeholder={scaffold(project.type)? "Formatting scaffold is filled in — write over it." : "One sentence is enough to start."} />
                   </div>
                 </div>
