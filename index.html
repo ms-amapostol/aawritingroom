@@ -350,6 +350,29 @@
   .split{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start;}
   .split.solo{grid-template-columns:minmax(0,1fr);}
 
+  /* ---------------- THE SPINE AS A PARAGRAPH ---------------- */
+  .point-line{border-bottom:1px solid var(--line);padding-bottom:15px;margin-bottom:20px;}
+  .point-line .pl-val{font-family:'Newsreader',Georgia,serif;font-style:italic;font-size:17px;line-height:1.5;color:var(--ink);
+    border:none;background:none;width:100%;padding:0;resize:none;}
+  .point-line .pl-val::placeholder{color:#B8AF9F;}
+  .living{font-family:'Newsreader',Georgia,serif;font-size:19px;line-height:2.0;color:var(--ink);margin-bottom:6px;}
+  .living .lead{color:var(--muted);}
+  .clause{border:none;background:none;font:inherit;color:inherit;padding:1px 2px;cursor:pointer;
+    border-bottom:1px solid var(--line);border-radius:2px;text-align:left;}
+  .clause:hover{background:var(--indigo-soft);border-bottom-color:var(--indigo);}
+  .clause.on{background:var(--indigo-soft);border-bottom:1.5px solid var(--indigo);}
+  .clause.blank{color:#B8AF9F;border-bottom:1px dotted #B8AF9F;padding:0 14px;}
+  .clause.blank:hover{color:var(--indigo);}
+  .beat-talk{background:var(--sage-soft);border-radius:12px;padding:17px 19px;margin:16px 0 20px;}
+  .beat-talk .bt-k{display:flex;align-items:baseline;gap:8px;margin-bottom:9px;flex-wrap:wrap;}
+  .beat-talk .bt-q{font-family:'Newsreader',Georgia,serif;font-size:16.5px;line-height:1.6;margin-bottom:12px;}
+  .beat-talk textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+    font-size:14.5px;line-height:1.6;background:var(--panel);resize:vertical;min-height:70px;}
+  .cand{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:8px;cursor:pointer;
+    font-family:'Newsreader',Georgia,serif;font-size:15px;line-height:1.6;text-align:left;width:100%;}
+  .cand:hover{border-color:var(--indigo);background:var(--indigo-soft);}
+  .spine-prog{font-size:12px;color:var(--muted);}
+
   /* ---------------- NIB ---------------- */
   .nib-rest{position:fixed;right:26px;bottom:26px;width:52px;height:52px;border-radius:50%;
     background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--muted);
@@ -2620,6 +2643,108 @@ function SideNote({project, upd}){
   );
 }
 
+/* ---------------- BEAT CONVERSATION ---------------- */
+/* One beat, one question, answered in plain language. The room drafts candidates
+   from the author's own words; the author picks or rewrites. It never fills a beat by itself. */
+function BeatTalk({project, beats, beat, value, ai, onSave, onClose, openSettings}){
+  const [q,setQ]       = useState("");
+  const [answer,setAns]= useState("");
+  const [cands,setCands]= useState([]);
+  const [draft,setDraft]= useState(value||"");
+  const [busy,setBusy] = useState("");
+  const [err,setErr]   = useState("");
+  const spine = project.spine||{};
+  const told = beats.filter(b=>spine[b.k] && b.k!==beat.k)
+                    .map(b=>`${b.step} ${spine[b.k]}`).join(" ");
+
+  const fallbackQ = () => {
+    const m = {
+      setup:"Who is your main character before anything happens, and what do they believe about their life?",
+      everyday:"What does an ordinary day look like for them? What do they do without thinking?",
+      inciting:"What arrives, or breaks, that they can't ignore?",
+      rising1:"They act. What happens because of it that they didn't intend?",
+      rising2:"What makes it worse? What's the thing they're now afraid of losing?",
+      climax:"What is the hardest moment — the one where they have to choose?",
+      resolution:"When it's over, what's different about them, and about the world they're in?"
+    };
+    return m[beat.k] || `In your own words: ${beat.purpose||beat.step}`;
+  };
+
+  useEffect(()=>{
+    let alive=true;
+    (async ()=>{
+      if(!ai.ready){ setQ(fallbackQ()); return; }
+      setBusy("q");
+      try{
+        const out=await ai.run({maxTokens:170,
+          system:"You help a novelist talk through their story one beat at a time. You ask ONE warm, concrete question that would help them say what happens at this beat. You ask about their story, never about theory or craft terms. You never propose plot. Return ONLY JSON.",
+          prompt:`Novel "${project.title}"${project.genre?" ("+project.genre+")":""}.${project.armature?' Its point: "'+project.armature+'".':""}\n${told?"What they've told me so far: "+told:"They haven't described any beats yet."}\n\nThe beat we're on is "${beat.step}" \u2014 ${beat.purpose}.\n\nReturn {"q":"one question, under 28 words, in plain warm language, about THEIR story"}.`});
+        const j=parseJSON(out);
+        if(alive) setQ((j&&j.q)||fallbackQ());
+      }catch(e){ if(alive) setQ(fallbackQ()); }
+      if(alive) setBusy("");
+    })();
+    return ()=>{alive=false;};
+  },[beat.k]);
+
+  async function makeCandidates(){
+    if(!ai.ready){ openSettings(); return; }
+    if(answer.trim().length<8){ setErr("Say a little more and I'll shape it with you."); return; }
+    setErr(""); setBusy("c"); setCands([]);
+    try{
+      const out=await ai.run({maxTokens:420,
+        system:"You turn a novelist's rough spoken answer into 2-3 candidate one-sentence beat statements. You use ONLY their nouns, names and facts \u2014 you invent no plot, no new characters, no new events. Each candidate is a different emphasis of what they already said. Return ONLY a JSON array of strings.",
+        prompt:`Beat: "${beat.step}" \u2014 ${beat.purpose}\n\nThe author said:\n"""${answer}"""\n\nReturn 2-3 candidate sentences, each under 30 words, in their vocabulary, phrased as story (not analysis). Return a JSON array of strings.`});
+      const arr=parseJSON(out);
+      setCands(Array.isArray(arr)?arr.filter(x=>typeof x==="string").slice(0,3):[]);
+      if(!Array.isArray(arr)||!arr.length) setErr("Nothing usable came back \u2014 write it yourself below, it's your call anyway.");
+    }catch(e){ setErr(e.message==="NO_KEY"?"Add your API key first.":e.message); }
+    setBusy("");
+  }
+
+  return (
+    <div className="beat-talk">
+      <div className="bt-k">
+        <span className="mono">{beat.step}</span>
+        <span style={{fontSize:12,color:"var(--muted)"}}>{beat.purpose}</span>
+        <button className="btn btn-ghost btn-sm" style={{marginLeft:"auto",padding:"2px 6px"}} onClick={onClose}>close</button>
+      </div>
+
+      <div className="bt-q">{busy==="q" ? <><span className="spin dark"></span> thinking of a good question…</> : q}</div>
+
+      <textarea value={answer} onChange={e=>setAns(e.target.value)}
+        placeholder="Say it the way you'd say it out loud. Rough is fine." />
+
+      <div className="toolbar">
+        <button className="btn btn-primary btn-sm" disabled={busy==="c"} onClick={makeCandidates}>
+          {busy==="c" ? <><span className="spin"></span> Shaping…</> : <>{iSpark} Shape this into a beat</>}
+        </button>
+        <button className="btn btn-sm btn-ghost" onClick={()=>{ setDraft(answer); setCands([]); }}>Use my words as-is</button>
+      </div>
+
+      {cands.length>0 && (
+        <div style={{marginTop:13}}>
+          <div className="mono" style={{marginBottom:6}}>Pick the one that sounds like your book — then edit it</div>
+          {cands.map((c,i)=><button className="cand" key={i} onClick={()=>setDraft(c)}>{c}</button>)}
+        </div>
+      )}
+
+      <div style={{marginTop:14}}>
+        <div className="mono" style={{marginBottom:5}}>The beat, in your words</div>
+        <textarea value={draft} onChange={e=>setDraft(e.target.value)} style={{minHeight:60}}
+          placeholder="Write or edit it here. This is what goes in the paragraph." />
+      </div>
+
+      {err && <div className="err" style={{marginTop:8}}>{err}</div>}
+
+      <div className="toolbar">
+        <button className="btn btn-primary btn-sm" disabled={!draft.trim()} onClick={()=>onSave(draft.trim())}>Save this beat</button>
+        <button className="btn btn-sm btn-ghost" onClick={onClose}>Come back to this</button>
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- STORY SPINE ROADMAP ---------------- */
 function SpineRoadmap({project, upd, ai, openSettings, logReview}){
   const [busy,setBusy]=useState(false);
@@ -2630,6 +2755,10 @@ function SpineRoadmap({project, upd, ai, openSettings, logReview}){
   const [pitchBusy,setPitchBusy]=useState(false);
   const [custom,setCustom]=useState(false);
   const [openSlots,setOpenSlots]=useState({}); // beat.k -> bool; collapsed by default
+  const [talkBeat,setTalkBeat]=useState(null);   // which clause is being talked through
+  const [fullRoadmap,setFullRoadmap]=useState(false);
+  const [armCands,setArmCands]=useState([]);
+  const [armCandBusy,setArmCandBusy]=useState(false);
   const toggleSlot=(k)=>setOpenSlots(o=>({...o,[k]:!o[k]}));
   const spine = project.spine||{};
   const beats = beatsOf(project);
@@ -2724,6 +2853,28 @@ function SpineRoadmap({project, upd, ai, openSettings, logReview}){
   }
   const verdictClass=(v)=> v==="drifts"?"high":v==="partly"?"medium":"low";
 
+  async function armatureCandidates(){
+    if(!ai.ready){ openSettings(); return; }
+    const told = beats.filter(b=>spine[b.k]).map(b=>b.step+" "+spine[b.k]).join(" ");
+    const prose = (project.sections||[]).map(s=>(s.content||"").slice(0,1200)).join("\n").slice(0,6000);
+    if(!told && !prose.trim()){ setErr("Write a beat or a page first, then I have something to read."); return; }
+    setErr(""); setArmCandBusy(true); setArmCands([]);
+    const parts = [];
+    parts.push('Novel "' + project.title + '"' + (project.genre? " ("+project.genre+")" : "") + ".");
+    if(told)  parts.push("Beats so far: " + told);
+    if(prose) parts.push("Prose so far:\n" + prose);
+    parts.push("Return 3 candidate armatures, each one short sentence under 16 words, each a genuinely different reading of what this story is about.");
+    try{
+      const out=await ai.run({maxTokens:400,
+        system:"You read a novelist's material and propose 3 candidate armatures \u2014 the point the story is sculpted around, stated as a claim about people rather than a summary of plot. Use only what is in their material. Return ONLY a JSON array of strings.",
+        prompt: parts.join("\n\n")});
+      const arr=parseJSON(out);
+      setArmCands(Array.isArray(arr)?arr.filter(x=>typeof x==="string").slice(0,3):[]);
+      if(!Array.isArray(arr)||!arr.length) setErr("Nothing usable came back. Your own words are better anyway.");
+    }catch(e){ setErr(e.message==="NO_KEY"?"Add your API key first.":e.message); }
+    setArmCandBusy(false);
+  }
+
   return (
     <>
     {confirmDialog}
@@ -2773,15 +2924,63 @@ function SpineRoadmap({project, upd, ai, openSettings, logReview}){
         )}
       </div>
 
-      <div className="armature-bar">
-        <div className="lbl">{framework==="poetry"?"The organizing principle — the thread the whole collection braids":framework==="collection"?"What binds these pieces — theme, place, voice, or question":"The point your whole story is sculpted around (armature)"}</div>
-        <textarea value={project.armature||""} onChange={e=>upd({armature:e.target.value})}
-          placeholder={framework==="story"?"What is this really about? Every beat below should serve this.":"What holds this collection together? Every piece should touch this thread."} />
-      </div>
+      {framework!=="story" && (
+        <div className="armature-bar">
+          <div className="lbl">{framework==="poetry"?"The organizing principle — the thread the whole collection braids":"What binds these pieces — theme, place, voice, or question"}</div>
+          <textarea value={project.armature||""} onChange={e=>upd({armature:e.target.value})}
+            placeholder="What holds this collection together? Every piece should touch this thread." />
+        </div>
+      )}
 
       {lowContent && <div className="sub" style={{fontFamily:"'Newsreader'",fontStyle:"italic",margin:"-8px 0 14px"}}>
         For {typeLabel(project.type).toLowerCase()}s and other collection-style books, structure is often simply the sequence of entries. Use the spine only if a narrative arc helps — or skip straight to the Writing tab.
       </div>}
+
+      {framework==="story" && (
+        <div style={{marginBottom:24}}>
+          <div className="point-line">
+            <div className="mono" style={{marginBottom:5,display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+              <span>The point</span>
+              <button className="btn btn-sm btn-ghost" disabled={armCandBusy} onClick={armatureCandidates}>
+                {armCandBusy? <><span className="spin dark"></span> Reading…</> : <>{iSpark} Help me name it</>}
+              </button>
+            </div>
+            <textarea className="pl-val" rows={2} value={project.armature||""}
+              onChange={e=>upd({armature:e.target.value})}
+              placeholder="What this story is really about — a claim about people, not a summary. You can leave this until later." />
+            {armCands.length>0 && (
+              <div style={{marginTop:10}}>
+                <div className="mono" style={{marginBottom:6}}>Three readings of your material — pick one and make it yours</div>
+                {armCands.map((c,i)=><button className="cand" key={i} onClick={()=>{ upd({armature:c}); setArmCands([]); }}>{c}</button>)}
+              </div>
+            )}
+          </div>
+
+          <div className="living">
+            {beats.map((b,i)=>(
+              <React.Fragment key={b.k}>
+                <span className="lead">{b.step.replace(/[…\u2026]$/,"")} </span>
+                {spine[b.k]
+                  ? <button className={"clause"+(talkBeat===b.k?" on":"")} title="Talk this beat through"
+                      onClick={()=>setTalkBeat(talkBeat===b.k?null:b.k)}>{spine[b.k]}</button>
+                  : <button className={"clause blank"+(talkBeat===b.k?" on":"")} title="Fill this beat"
+                      onClick={()=>setTalkBeat(talkBeat===b.k?null:b.k)}>—</button>}
+                {i<beats.length-1 ? " " : ""}
+              </React.Fragment>
+            ))}
+          </div>
+          <div className="spine-prog">
+            {pitchParts.length} of {beats.length} beats filled · click any part of the paragraph to talk it through
+          </div>
+
+          {talkBeat && (()=>{ const b=beats.find(x=>x.k===talkBeat); if(!b) return null;
+            return <BeatTalk key={b.k} project={project} beats={beats} beat={b} value={spine[b.k]||""} ai={ai}
+              openSettings={openSettings}
+              onSave={(v)=>{ setBeat(b.k,v); setTalkBeat(null); }}
+              onClose={()=>setTalkBeat(null)} />;
+          })()}
+        </div>
+      )}
 
       {pitchParts.length>0 && (
         <div>
@@ -2798,15 +2997,17 @@ function SpineRoadmap({project, upd, ai, openSettings, logReview}){
             : <div className="pitch-para">{pitchParts.join(" ")}{pitchWords>90 && <div style={{marginTop:8,fontStyle:"italic",fontSize:12,color:"var(--muted)"}}>That's {pitchWords} words — a real pitch is tighter. Distill it above.</div>}</div>}
         </div>
       )}
-      <div className="pitch-strip">
-        {beats.map((b,i)=>(
-          <div className="pitch-chip" key={b.k}>
-            <div className="pcs">{i+1} · {b.step}</div>
-            <div className="pct2">{spine[b.k]||"—"}</div>
-          </div>
-        ))}
+
+      <div className="fold-line" style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexWrap:"wrap",borderTop:"1px solid var(--line)",paddingTop:14,marginTop:6,marginBottom:fullRoadmap?16:0}}>
+        <button className="btn btn-sm btn-ghost" style={{paddingLeft:0}} onClick={()=>setFullRoadmap(v=>!v)}>
+          {fullRoadmap?"▴ Hide the full roadmap":"▾ Open the full roadmap"}
+        </button>
+        <span className="sub" style={{fontSize:12.5}}>
+          {(project.chapters||[]).length} chapters and {scenes.length} scenes attached
+        </span>
       </div>
 
+      <div style={{display:fullRoadmap?undefined:"none"}}>
       <div className="section-head" style={{marginBottom:12}}>
         <div className="sub" style={{maxWidth:420}}>Fill each beat in your own words. Add, reorder, and reassign chapters and scenes right beneath their beat — this roadmap is the story's home.</div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
@@ -2901,6 +3102,7 @@ function SpineRoadmap({project, upd, ai, openSettings, logReview}){
           );
         })}
       </div>
+      </div>{/* end full roadmap */}
       <div className="credit" style={{textAlign:"left",padding:"16px 0 0"}}>
         {framework==="story"
           ? <>Structure follows the <b>Story Spine</b> (Kenn Adams, popularized by Pixar) as taught through Brian McDonald's <a href="https://www.google.com/search?q=Invisible+Ink+Brian+McDonald+book" target="_blank" rel="noopener">Invisible Ink</a> — used here as inspiration, in our own words.</>
@@ -3766,13 +3968,22 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
   /* ---------- NIB ---------- */
   const NIB_SEAM_MS = 11000;       // pause before a seam counts
   const NIB_MIN_WORDS = 25;        // new words needed since the last read
-  const NIB_MAX_SKIMS = 5;         // API reads allowed per session
-  const [nibNotes, setNibNotes] = useState([]);
+  const NIB_MAX_SKIMS = readsPerDay; // reads allowed per day (0 = Nib stays silent)
+  const nibToday = new Date().toDateString();
+  const nibDay = () => {
+    const d = store.get("ss_nibday", null);
+    return (d && d.day===nibToday) ? d : {day:nibToday, notes:[], skims:0, auto:false};
+  };
+  const saveNibDay = (patch) => store.set("ss_nibday", {...nibDay(), ...patch});
+  const [nibNotes, _setNibNotes] = useState(()=>nibDay().notes||[]);
+  const setNibNotes = (fn)=>_setNibNotes(prev=>{ const next=typeof fn==="function"?fn(prev):fn; saveNibDay({notes:next}); return next; });
   const [nibOpen, setNibOpen]   = useState(false);
   const [nibMode, setNibMode]   = useState("notes");
   const [nibStirred, setNibStirred] = useState(false);
-  const [nibSkims, setNibSkims] = useState(0);
-  const nibAuto  = useRef(false);   // one self-opening note per session
+  const [nibSkims, _setNibSkims] = useState(()=>nibDay().skims||0);
+  const setNibSkims = (fn)=>_setNibSkims(prev=>{ const next=typeof fn==="function"?fn(prev):fn; saveNibDay({skims:next}); return next; });
+  const nibAuto  = useRef(!!nibDay().auto);   // one self-opening note per day
+  const readsPerDay = (project.nibReads===undefined? 10 : project.nibReads);
   const nibTimer = useRef(null);
   const nibMark  = useRef(0);       // word count at the last read
   const nibBusy  = useRef(false);
@@ -3780,7 +3991,7 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
   const stir = () => { setNibStirred(true); setTimeout(()=>setNibStirred(false), 5000); };
 
   async function nibSkim(){
-    if(!ai.ready || nibBusy.current || nibSkims>=NIB_MAX_SKIMS) return;
+    if(!ai.ready || nibBusy.current || NIB_MAX_SKIMS<=0 || nibSkims>=NIB_MAX_SKIMS) return;
     const text = (current && current.content) || "";
     const words = text.trim().split(/\s+/).filter(Boolean);
     if(words.length - nibMark.current < NIB_MIN_WORDS) return;
@@ -3800,7 +4011,7 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
       if(j && j.q && (j.confidence===undefined || j.confidence>=0.55)){
         const note = {id:uid(), q:j.q, topic:j.topic||""};
         setNibNotes(ns=>[note, ...ns]);
-        if(!nibAuto.current){ nibAuto.current = true; setNibMode("notes"); setNibOpen(true); }
+        if(!nibAuto.current){ nibAuto.current = true; saveNibDay({auto:true}); setNibMode("notes"); setNibOpen(true); }
         else stir();
       }
     }catch(e){ /* stay quiet on failure — the page matters more */ }
@@ -4088,7 +4299,8 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
       {nibNotes.length>0 && <span className="nbadge">{nibNotes.length}</span>}
     </button>
     {nibOpen && <NibPanel project={project} ai={ai} notes={nibNotes} mode={nibMode}
-      unit={unitName(project.type).toLowerCase()} skimsLeft={Math.max(0,5-nibSkims)}
+      unit={unitName(project.type).toLowerCase()} skimsLeft={Math.max(0,readsPerDay-nibSkims)}
+      readsPerDay={readsPerDay} onReads={n=>upd({nibReads:n})}
       onAnswer={nibDrop} onLater={nibDrop} onLess={nibLess}
       onStuck={()=>setNibMode("doors")} onNotes={()=>setNibMode("notes")}
       onClose={()=>setNibOpen(false)} onRope={tieRope} />}
@@ -4501,7 +4713,7 @@ const NIB_DOORS = (unit, sideDoor) => ([
   {t:"The out door", d:"Close this and go do something else. The "+unit+" keeps. Sentences tend to solve themselves on a walk.", out:true}
 ]);
 
-function NibPanel({project, ai, notes, onAnswer, onLater, onLess, onStuck, mode, onNotes, onClose, onRope, unit, skimsLeft}){
+function NibPanel({project, ai, notes, onAnswer, onLater, onLess, onStuck, mode, onNotes, onClose, onRope, unit, skimsLeft, readsPerDay, onReads}){
   const [ropeText, setRopeText] = useState("");
   return (
     <div className="nib-panel">
@@ -4559,7 +4771,19 @@ function NibPanel({project, ai, notes, onAnswer, onLater, onLess, onStuck, mode,
             <button className="btn btn-sm" style={{marginTop:8,width:"100%",justifyContent:"center"}}
               disabled={!ropeText.trim()} onClick={()=>{ onRope(ropeText.trim()); setRopeText(""); }}>Tie it for next time</button>
           </div>
-          {ai.ready && <div className="mono" style={{fontSize:9,marginTop:11,color:"var(--muted)"}}>{skimsLeft} reads left this session</div>}
+          {ai.ready && (
+            <div style={{marginTop:12,paddingTop:11,borderTop:"1px solid var(--line)"}}>
+              <div className="mono" style={{fontSize:9,marginBottom:6}}>
+                {readsPerDay===0 ? "Nib isn\u2019t reading" : `${skimsLeft} of ${readsPerDay} reads left today`}
+              </div>
+              <div className="chips">
+                {[["Off",0],["Sparing",5],["Normal",10],["Chatty",25]].map(([l,n])=>(
+                  <button key={l} className="chip" style={readsPerDay===n?{background:"var(--indigo)",borderColor:"var(--indigo)",color:"#fff"}:{}}
+                    onClick={()=>onReads(n)}>{l}</button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
