@@ -350,6 +350,34 @@
   .split{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start;}
   .split.solo{grid-template-columns:minmax(0,1fr);}
 
+  /* ---------------- SPINE SESSION ---------------- */
+  .sess{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);
+    padding:20px 22px;margin:18px 0 22px;}
+  .sess-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+  .sess-dots{display:flex;gap:5px;flex:1;min-width:120px;}
+  .sess-dots i{flex:1;max-width:40px;height:5px;border-radius:3px;background:var(--line);font-style:normal;}
+  .sess-dots i.done{background:var(--indigo);}
+  .sess-dots i.now{background:var(--ink);}
+  .sess-step{font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);}
+  .sess .beat-talk{background:none;padding:0;margin:0;}
+  .sess-done{font-family:'Newsreader',Georgia,serif;font-size:18px;line-height:1.9;
+    background:var(--paper);border-radius:11px;padding:16px 18px;margin:12px 0 14px;}
+  .sess-open{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--indigo-soft);
+    border-radius:12px;padding:14px 16px;margin-bottom:18px;}
+  .sess-open .so-t{font-family:'Newsreader',Georgia,serif;font-size:15.5px;line-height:1.55;color:#0B4F49;flex:1;min-width:220px;}
+
+  /* ---------------- CAST UNDER PRESSURE ---------------- */
+  .cline{font-family:'Newsreader',Georgia,serif;font-size:15.5px;line-height:1.7;color:var(--ink);margin:2px 0 0;}
+  .cline.none{color:var(--muted);font-style:italic;font-size:14.5px;}
+  .cline-edit{width:100%;min-height:48px;margin-top:8px;font-family:'Newsreader',Georgia,serif;font-size:15px;
+    line-height:1.65;border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:var(--panel);resize:vertical;}
+  .bstrip{display:flex;gap:4px;margin:6px 0 5px;}
+  .bstrip i{flex:1;height:20px;border-radius:3px;background:var(--ink);opacity:.8;font-style:normal;}
+  .bstrip i.off{background:var(--indigo-soft);border:1px dashed #9ec9c4;opacity:1;}
+  .bstrip-lbl{display:flex;justify-content:space-between;font-family:'IBM Plex Mono';font-size:9px;color:var(--muted);letter-spacing:.03em;}
+  .ctension{background:var(--indigo-soft);border-radius:9px;padding:10px 12px;margin-top:11px;font-size:13.5px;color:#0B4F49;line-height:1.55;}
+  .cmine{font-family:'IBM Plex Mono';font-size:9px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);}
+
   /* ---------------- THE SPINE AS A PARAGRAPH ---------------- */
   .point-line{border-bottom:1px solid var(--line);padding-bottom:15px;margin-bottom:20px;}
   .point-line .pl-val{font-family:'Newsreader',Georgia,serif;font-style:italic;font-size:17px;line-height:1.5;color:var(--ink);
@@ -2646,7 +2674,7 @@ function SideNote({project, upd}){
 /* ---------------- BEAT CONVERSATION ---------------- */
 /* One beat, one question, answered in plain language. The room drafts candidates
    from the author's own words; the author picks or rewrites. It never fills a beat by itself. */
-function BeatTalk({project, beats, beat, value, ai, onSave, onClose, openSettings}){
+function BeatTalk({project, beats, beat, value, ai, onSave, onClose, openSettings, nextLabel, onSkip}){
   const [q,setQ]       = useState("");
   const [answer,setAns]= useState("");
   const [cands,setCands]= useState([]);
@@ -2738,8 +2766,11 @@ function BeatTalk({project, beats, beat, value, ai, onSave, onClose, openSetting
       {err && <div className="err" style={{marginTop:8}}>{err}</div>}
 
       <div className="toolbar">
-        <button className="btn btn-primary btn-sm" disabled={!draft.trim()} onClick={()=>onSave(draft.trim())}>Save this beat</button>
-        <button className="btn btn-sm btn-ghost" onClick={onClose}>Come back to this</button>
+        <button className="btn btn-primary btn-sm" disabled={!draft.trim()} onClick={()=>onSave(draft.trim())}>
+          {nextLabel || "Save this beat"}
+        </button>
+        {onSkip && <button className="btn btn-sm btn-ghost" onClick={onSkip}>Skip this one</button>}
+        <button className="btn btn-sm btn-ghost" onClick={onClose}>{onSkip? "Pause the session" : "Come back to this"}</button>
       </div>
     </div>
   );
@@ -2756,6 +2787,7 @@ function SpineRoadmap({project, upd, ai, openSettings, logReview}){
   const [custom,setCustom]=useState(false);
   const [openSlots,setOpenSlots]=useState({}); // beat.k -> bool; collapsed by default
   const [talkBeat,setTalkBeat]=useState(null);   // which clause is being talked through
+  const [sess,setSess]=useState(null);           // {idx} — a guided walk through the whole spine
   const [fullRoadmap,setFullRoadmap]=useState(false);
   const [armCands,setArmCands]=useState([]);
   const [armCandBusy,setArmCandBusy]=useState(false);
@@ -2766,6 +2798,7 @@ function SpineRoadmap({project, upd, ai, openSettings, logReview}){
   const framework = project.type==="poetry" ? "poetry" : project.type==="vignettes" ? "collection" : "story";
   const lowContent = ["journal","essay","howto"].includes(project.type);
   const setBeat=(k,v)=>upd({spine:{...spine,[k]:v}});
+  const clearSpine=()=>{ upd({spine:{}, logline:""}); setSess(null); setTalkBeat(null); };
 
   // chapters managed right here in the spine
   const chapters=project.chapters||[];
@@ -2973,7 +3006,93 @@ function SpineRoadmap({project, upd, ai, openSettings, logReview}){
             {pitchParts.length} of {beats.length} beats filled · click any part of the paragraph to talk it through
           </div>
 
-          {talkBeat && (()=>{ const b=beats.find(x=>x.k===talkBeat); if(!b) return null;
+          {!sess && (
+            <div className="sess-open" style={{marginTop:16}}>
+              <div className="so-t">
+                {pitchParts.length===0
+                  ? "Rather talk it through? I\u2019ll ask you about your story one piece at a time, from the top."
+                  : `You\u2019ve got ${pitchParts.length} of ${beats.length}. I can walk you through the rest \u2014 or the whole thing again, from the top.`}
+              </div>
+              <button className="btn btn-primary btn-sm" onClick={()=>{ setTalkBeat(null); setSess({idx: (project.armature||"").trim()? 0 : -1}); }}>
+                {pitchParts.length===0 ? "Talk it through \u2192" : "Start a session \u2192"}
+              </button>
+              {pitchParts.length>0 && (
+                <button className="btn btn-danger btn-sm"
+                  onClick={()=>askDelete("Every beat of your story spine", clearSpine,
+                    "The seven beats and your logline are cleared. Your point, chapters, scenes and prose are untouched.")}>
+                  Start the spine over
+                </button>
+              )}
+            </div>
+          )}
+
+          {sess && (()=>{
+            const atPoint = sess.idx < 0;
+            const b = atPoint ? null : beats[sess.idx];
+            const done = sess.idx >= beats.length;
+            const advance = ()=>setSess({idx: sess.idx+1});
+            return (
+              <div className="sess">
+                <div className="sess-top">
+                  <span className="sess-step">
+                    {done ? "Read it back" : atPoint ? "First, the point" : `Beat ${sess.idx+1} of ${beats.length}`}
+                  </span>
+                  <div className="sess-dots">
+                    {beats.map((x,i)=><i key={x.k} className={i<sess.idx?"done":i===sess.idx?"now":""}></i>)}
+                  </div>
+                  <button className="btn btn-ghost btn-sm" style={{padding:"2px 8px"}} onClick={()=>setSess(null)}>pause</button>
+                </div>
+
+                {done ? (
+                  <div>
+                    <p className="reading" style={{fontSize:15,marginTop:0}}>Here it is, read straight through. If a sentence sounds unlike your book, click it in the paragraph above and we&rsquo;ll take another pass.</p>
+                    <div className="sess-done">
+                      {beats.map(x=>(
+                        <React.Fragment key={x.k}>
+                          <span style={{color:"var(--muted)"}}>{x.step.replace(/\u2026$/,"")} </span>
+                          <span>{spine[x.k] || "\u2014"} </span>
+                        </React.Fragment>
+                      ))}
+                    </div>
+                    <div className="toolbar">
+                      <button className="btn btn-primary btn-sm" onClick={()=>setSess(null)}>That&rsquo;s the shape</button>
+                      <button className="btn btn-sm btn-ghost" onClick={()=>setSess({idx:0})}>Walk it again</button>
+                    </div>
+                  </div>
+                ) : atPoint ? (
+                  <div>
+                    <div className="bt-q" style={{fontFamily:"'Newsreader'",fontSize:16.5,lineHeight:1.6,marginBottom:12}}>
+                      Before the beats \u2014 what do you think this story is really about? A claim about people, rather than what happens. A rough guess is plenty, and you can skip it.
+                    </div>
+                    <textarea className="pl-val" rows={2} value={project.armature||""}
+                      onChange={e=>upd({armature:e.target.value})} placeholder="Say it however it comes out."
+                      style={{border:"1px solid var(--line)",borderRadius:9,padding:"10px 12px",background:"var(--paper)"}} />
+                    {armCands.length>0 && (
+                      <div style={{marginTop:10}}>
+                        <div className="mono" style={{marginBottom:6}}>Three readings of your material \u2014 pick one and make it yours</div>
+                        {armCands.map((c,i)=><button className="cand" key={i} onClick={()=>{ upd({armature:c}); setArmCands([]); }}>{c}</button>)}
+                      </div>
+                    )}
+                    <div className="toolbar">
+                      <button className="btn btn-primary btn-sm" onClick={advance}>Next \u2192</button>
+                      <button className="btn btn-sm" disabled={armCandBusy} onClick={armatureCandidates}>
+                        {armCandBusy? <><span className="spin dark"></span> Reading\u2026</> : <>{iSpark} Read my pages and suggest</>}
+                      </button>
+                      <button className="btn btn-sm btn-ghost" onClick={advance}>Skip for now</button>
+                    </div>
+                  </div>
+                ) : (
+                  <BeatTalk key={b.k+"-sess"} project={project} beats={beats} beat={b} value={spine[b.k]||""} ai={ai}
+                    openSettings={openSettings} nextLabel={sess.idx===beats.length-1?"Save \u2014 and read it back":"Save and go on \u2192"}
+                    onSkip={advance}
+                    onSave={(v)=>{ setBeat(b.k,v); advance(); }}
+                    onClose={()=>setSess(null)} />
+                )}
+              </div>
+            );
+          })()}
+
+          {talkBeat && !sess && (()=>{ const b=beats.find(x=>x.k===talkBeat); if(!b) return null;
             return <BeatTalk key={b.k} project={project} beats={beats} beat={b} value={spine[b.k]||""} ai={ai}
               openSettings={openSettings}
               onSave={(v)=>{ setBeat(b.k,v); setTalkBeat(null); }}
@@ -3213,6 +3332,58 @@ function CharactersTab({project, upd, ai, openSettings, focusCharId, onFocusCons
     (project.scenes||[]).forEach(s=>{ if((s.content||"").toLowerCase().includes(n)) hits.push({kind:"scenes",id:s.id,title:"Scene: "+s.title}); });
     return hits;
   };
+  /* --- where each character stands on the spine --- */
+  const castBeats = beatsOf(project);
+  const presenceOf = (name)=>{
+    const n=(name||"").trim().toLowerCase();
+    if(!n) return castBeats.map(()=>false);
+    const byBeat={}; (project.chapters||[]).forEach(c=>{ (byBeat[c.beat]=byBeat[c.beat]||[]).push(c); });
+    return castBeats.map(b=>{
+      if((project.scenes||[]).some(s=>s.beat===b.k && ((s.content||"")+" "+(s.title||"")).toLowerCase().includes(n))) return true;
+      return (byBeat[b.k]||[]).some(o=>{
+        if((o.summary||"").toLowerCase().includes(n)) return true;
+        const sec=(project.sections||[]).find(s=>s.title===o.title);
+        return sec && (sec.content||"").toLowerCase().includes(n);
+      });
+    });
+  };
+  const gapRun = (pres)=>{
+    let best={len:0,at:-1}, run=0, start=-1;
+    pres.forEach((v,i)=>{ if(!v){ if(run===0) start=i; run++; if(run>best.len) best={len:run,at:start}; } else run=0; });
+    return best;
+  };
+
+  const [lineBusy,setLineBusy]=useState(null);
+  async function composeLine(c){
+    if(!ai.ready){ openSettings(); return; }
+    setErr(""); setLineBusy(c.id);
+    const spine=project.spine||{};
+    const told=castBeats.filter(b=>spine[b.k]).map(b=>b.step+" "+spine[b.k]).join(" ");
+    const pres=presenceOf(c.name);
+    const absent=castBeats.filter((b,i)=>!pres[i]).map(b=>b.step).join(", ");
+    const facts=[["role",c.role],["want",c.want],["need",c.need],["flaw",c.flaw],["arc",c.arc],
+                 ["voice",c.voice],["relationships",c.relationships],["description",c.description]]
+                 .filter(x=>x[1]&&String(x[1]).trim()).map(x=>x[0]+": "+x[1]).join("\n");
+    const prose=proseAbout(c.name).slice(0,3500);
+    const parts=[];
+    parts.push('Novel "'+project.title+'"'+(project.genre?" ("+project.genre+")":"")+".");
+    if(project.armature) parts.push("Its point: "+project.armature);
+    if(told) parts.push("Story spine so far: "+told);
+    parts.push("Character: "+c.name+"\n"+(facts||"(no card fields filled in yet)"));
+    if(prose) parts.push("How they appear on the page:\n"+prose);
+    if(absent) parts.push("Beats where they never appear: "+absent);
+    parts.push('Return {"line":"one sentence naming what they want, what they need, and how their flaw will make those collide","tension":"one short sentence naming the strain worth acting on, phrased as a question to the author"}');
+    try{
+      const out=await ai.run({maxTokens:320,
+        system:"You compose ONE dramatic sentence about a novelist's character, using only their own material \u2014 their names, facts and nouns. You invent no plot and no new characters. You write about the story; you never write the story. Return ONLY a JSON object.",
+        prompt:parts.join("\n\n")});
+      const j=parseJSON(out);
+      if(j && j.line) edit(c.id,{line:j.line, tension:j.tension||"", lineMine:false});
+      else setErr("Nothing usable came back \u2014 try again, or write the sentence yourself.");
+    }catch(e){ setErr(e.message==="NO_KEY"?"Add your API key first.":e.message); }
+    setLineBusy(null);
+  }
+
   const onPortraitFile=(id,file)=>{
     if(!file) return;
     if(file.size > 900000){ setErr("That image is a bit large to store in-browser — try one under ~900KB, or paste an image URL instead."); return; }
@@ -3364,6 +3535,42 @@ function CharactersTab({project, upd, ai, openSettings, focusCharId, onFocusCons
                       <span className={"tier-badge "+t}>{t}</span>
                       <span className="caret">{isOpen?"▲":"▼"}</span>
                     </button>
+                    {(()=>{ const pres=presenceOf(c.name); const gap=gapRun(pres);
+                      return (
+                      <div style={{padding:"0 14px 14px"}}>
+                        <div className={"cline"+(c.line?"":" none")}>
+                          {c.line || "No sentence yet \u2014 one line on what they want, what they need, and the flaw that will make those collide."}
+                        </div>
+                        <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap",marginTop:7}}>
+                          <button className="btn btn-sm btn-ghost" style={{paddingLeft:0}} disabled={lineBusy===c.id}
+                            onClick={()=>composeLine(c)}>
+                            {lineBusy===c.id ? <><span className="spin dark"></span> Reading\u2026</> : <>{iSpark} {c.line?"Recompose":"Compose their sentence"}</>}
+                          </button>
+                          {c.line && <span className="cmine">{c.lineMine?"your words":"the room\u2019s words \u2014 edit to make them yours"}</span>}
+                        </div>
+                        {c.line && (
+                          <textarea className="cline-edit"
+                            value={c.line} onChange={e=>edit(c.id,{line:e.target.value, lineMine:true})} />
+                        )}
+                        {castBeats.length>0 && (project.chapters||[]).length>0 && (
+                          <div style={{marginTop:12}}>
+                            <div className="mono" style={{fontSize:9,marginBottom:4}}>Where they live on the spine</div>
+                            <div className="bstrip">{pres.map((v,i)=><i key={i} className={v?"":"off"} title={castBeats[i].step}></i>)}</div>
+                            <div className="bstrip-lbl">
+                              <span>{castBeats[0].step.replace(/\u2026$/,"")}</span>
+                              <span>{castBeats[castBeats.length-1].step.replace(/\u2026$/,"")}</span>
+                            </div>
+                            {gap.len>=3 && (
+                              <div className="ctension">
+                                They disappear across {gap.len} beats in a row, starting at &ldquo;{castBeats[gap.at].step.replace(/\u2026$/,"")}&rdquo;. Who carries that stretch?
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {c.tension && <div className="ctension">{c.tension}</div>}
+                      </div>
+                      ); })()}
+
                     {isOpen && (
                       <div className="crow-body">
                         <div className="cid-row">
@@ -3541,7 +3748,16 @@ function WorldTab({project, upd, ai, openSettings, onJumpToDoc, logReview}){
 
   const cohesion=worldCohesion(world);
   const counts={all:world.length}; WORLD_CATEGORIES.forEach(c=>counts[c]=world.filter(w=>w.category===c).length);
-  const filtered=world.filter(w=>(catFilter==="all"||w.category===catFilter) && (!q.trim()||w.name.toLowerCase().includes(q.toLowerCase())||(w.detail||"").toLowerCase().includes(q.toLowerCase())));
+  const [sortBy,setSortBy]=useState("pressure");
+  /* Pressure = how hard an element presses on the story. Mentions across the prose are
+     the honest measure: an element nobody collides with is decoration. */
+  const pressureOf=(w)=>(mentions[w.id]||0);
+  const BENDS_AT=3;
+  const filtered=world
+    .filter(w=>(catFilter==="all"||w.category===catFilter) && (!q.trim()||w.name.toLowerCase().includes(q.toLowerCase())||(w.detail||"").toLowerCase().includes(q.toLowerCase())))
+    .sort((a,b)=> sortBy==="pressure" ? pressureOf(b)-pressureOf(a) || a.name.localeCompare(b.name) : 0);
+  const bends=filtered.filter(w=>pressureOf(w)>=BENDS_AT);
+  const dressing=filtered.filter(w=>pressureOf(w)<BENDS_AT);
 
   async function findGaps(){
     if(!ai.ready){ openSettings(); return; }
@@ -3687,7 +3903,28 @@ function WorldTab({project, upd, ai, openSettings, onJumpToDoc, logReview}){
         </aside>
 
         <div>
-          <div className="card" style={{marginBottom:14}}>
+          <div className="card" style={{marginBottom:14,background:"var(--panel)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:8}}>
+              <span className="mono">What your world is doing</span>
+              <div className="chips">
+                {[["pressure","By pressure"],["listed","As listed"]].map(([id,l])=>(
+                  <button key={id} className="chip" style={sortBy===id?{background:"var(--indigo)",borderColor:"var(--indigo)",color:"#fff"}:{}} onClick={()=>setSortBy(id)}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <div className="reading" style={{fontSize:15,lineHeight:1.7}}>
+              {bends.length>0
+                ? <>{bends.slice(0,3).map(w=>w.name).join(", ")}{bends.length>3?` and ${bends.length-3} more`:""} {bends.length===1?"presses":"press"} on your story — characters collide with {bends.length===1?"it":"them"} on the page. The other {dressing.length} {dressing.length===1?"element is":"elements are"} set dressing so far.</>
+                : <>Nothing in your world has pressed on the page more than twice yet. That&rsquo;s normal early — pressure builds as you draft.</>}
+            </div>
+            <div style={{marginTop:10}}>
+              <button className="btn btn-sm btn-primary" disabled={gapBusy} onClick={findGaps}>
+                {gapBusy? <><span className="spin"></span> Looking…</> : <>{iSpark} Ask what&rsquo;s missing</>}
+              </button>
+            </div>
+          </div>
+
+          <div className="card" style={{marginBottom:14,display:"none"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:8}}>
               <span className="mono">How built is your world?</span>
               <button className="btn btn-sm" disabled={gapBusy} onClick={findGaps}>
@@ -3834,6 +4071,7 @@ function DocPicker({items, activeId, onPick}){
 const FOCUS_OPTIONS = [
   {id:"marketability", t:"Marketability"},
   {id:"grammar", t:"Grammar & mechanics"},
+  {id:"tense", t:"Tense consistency"},
   {id:"prose", t:"Prose & style"},
   {id:"plot", t:"Plot & structure"},
   {id:"pacing", t:"Pacing"},
@@ -4103,10 +4341,11 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
     try{
       const armLens = project.editorFocus.includes("armature") ? `\n- ARMATURE: The story's point is: "${project.armature||"(not yet defined)"}". Assess whether this ${unitName(project.type).toLowerCase()} actually serves that point, or drifts from it.` : "";
       const readerLens = project.editorFocus.includes("reader") ? `\n- READER EXPECTATIONS: Read it against what a ${project.genre||typeLabel(project.type)} reader expects — where it delivers and where it may lose them.` : "";
+      const tenseLens = project.editorFocus.includes("tense") ? "\n- TENSE CONSISTENCY: First decide the dominant narrative tense of this text (past or present) and say so. Then find EVERY place the narration slips out of it — including inside a single sentence, and including habitual or stative verbs like \"is\", \"has\", \"knows\". Quote the exact drifting words. Dialogue, direct thought, and deliberate flashback framing are NOT drift; ignore those. Give each drift its own note so the author can work through them one at a time." : "";
       const out = await ai.run({
-        maxTokens:1700,
+        maxTokens: project.editorFocus.includes("tense") ? 2600 : 1700,
         system:`You are a sharp, warm developmental editor for a ${typeLabel(project.type)}${project.genre?` in the ${project.genre} genre`:""}. ${typeGuidance} You SUGGEST and QUESTION — you never rewrite the author's prose or hand them replacement lines. Point to actual lines by quoting a few words. Be honest but encouraging; the author must stay motivated to finish. Return ONLY a JSON object.`,
-        prompt:`Give editorial notes on ${edScope==="whole"?"this full draft (all "+S.chapterCount+" "+unitName(project.type).toLowerCase()+"s, stitched in order)":"this "+unitName(project.type).toLowerCase()}. Focus ONLY on: ${focusLabels}.${armLens}${readerLens}\n\nReturn: {"strengths":"2-3 genuine strengths to keep, as one warm paragraph","notes":[{"focus":"which focus area","note":"short title of the issue","detail":"what to consider — quote a few words from the text; never rewrite for them","severity":"high|medium|low"}],"oneThing":"the single most valuable revision to make next, one sentence"}\nKeep notes to the 3-7 most valuable${edScope==="whole"?", drawn from across the whole draft — not only the opening "+unitName(project.type).toLowerCase():""}.\n\n"""${S.text}"""${S.sampled?"\n(Long draft: the above is a proportional sample from every "+unitName(project.type).toLowerCase()+" — weight structural notes across the whole arc and say so where relevant.)":""}`
+        prompt:`Give editorial notes on ${edScope==="whole"?"this full draft (all "+S.chapterCount+" "+unitName(project.type).toLowerCase()+"s, stitched in order)":"this "+unitName(project.type).toLowerCase()}. Focus ONLY on: ${focusLabels}.${armLens}${readerLens}${tenseLens}\n\nReturn: {"strengths":"2-3 genuine strengths to keep, as one warm paragraph","notes":[{"focus":"which focus area","note":"short title of the issue","detail":"what to consider — quote a few words from the text; never rewrite for them","severity":"high|medium|low"}],"oneThing":"the single most valuable revision to make next, one sentence"}\nKeep notes to the ${project.editorFocus.includes("tense")?"3-12 most valuable (list tense slips individually)":"3-7 most valuable"}${edScope==="whole"?", drawn from across the whole draft — not only the opening "+unitName(project.type).toLowerCase():""}.\n\n"""${S.text}"""${S.sampled?"\n(Long draft: the above is a proportional sample from every "+unitName(project.type).toLowerCase()+" — weight structural notes across the whole arc and say so where relevant.)":""}`
       });
       const j = parseJSON(out);
       if(j && (j.notes || j.strengths)){
