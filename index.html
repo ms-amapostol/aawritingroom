@@ -820,6 +820,263 @@ const beatsOf = (p)=> (p && p.spineBeats && p.spineBeats.length) ? p.spineBeats
   : (p && p.type==="vignettes") ? SPINE_COLLECTION
   : SPINE;
 
+/* ============================================================================
+   READER COPY PDF  —  Anastasia's Writing Room
+   Builds a bound-feeling PDF (title page, chapter openers, running heads,
+   page numbers, justified text) with NO external libraries.
+   Uses the PDF base-14 Times faces, so nothing needs to be embedded.
+   Works in the browser and in Node.
+   ==========================================================================*/
+const ReaderPDF = (function(){
+
+  /* --- Times width tables, WinAnsi codes 32..255, units of 1/1000 em ------ */
+  const WID = { R: [250,333,408,500,500,833,778,180,333,333,500,564,250,333,250,278,500,500,500,500,500,500,500,500,500,500,278,278,564,564,564,444,921,722,667,667,722,611,556,722,722,333,389,722,611,889,722,722,556,722,667,556,611,722,722,944,722,722,611,333,278,333,469,500,333,444,500,444,500,444,333,500,500,278,278,500,278,778,500,500,500,500,333,389,278,500,500,722,500,500,444,480,200,480,541,0,0,0,333,500,444,1000,500,500,333,1000,556,333,889,0,611,0,0,333,333,444,444,350,500,1000,333,980,389,333,722,0,444,722,250,333,500,500,500,500,200,500,333,760,276,500,564,333,760,333,400,564,300,300,333,500,453,250,333,300,310,500,750,750,750,444,722,722,722,722,722,722,889,667,611,611,611,611,333,333,333,333,722,722,722,722,722,722,722,564,722,722,722,722,722,722,556,500,444,444,444,444,444,444,667,444,444,444,444,444,278,278,278,278,500,500,500,500,500,500,500,564,500,500,500,500,500,500,500,500], I: [250,333,420,500,500,833,778,214,333,333,500,675,250,333,250,278,500,500,500,500,500,500,500,500,500,500,333,333,675,675,675,500,920,611,611,667,722,611,611,722,722,333,444,667,556,833,667,722,611,722,611,500,556,722,611,833,611,556,556,389,278,389,422,500,333,500,500,444,500,444,278,500,500,278,278,444,278,722,500,500,500,500,389,389,278,500,444,667,444,444,389,400,275,400,541,0,0,0,333,500,556,889,500,500,333,1000,500,333,944,0,556,0,0,333,333,556,556,350,500,889,333,980,389,333,667,0,389,556,250,389,500,500,500,500,275,500,333,760,276,500,675,333,760,333,400,675,300,300,333,500,523,250,333,300,310,500,750,750,750,500,611,611,611,611,611,611,889,667,611,611,611,611,333,333,333,333,722,667,722,722,722,722,722,675,722,722,722,722,722,556,611,500,500,500,500,500,500,500,667,444,444,444,444,444,278,278,278,278,500,500,500,500,500,500,500,675,500,500,500,500,500,444,500,444], B: [250,333,555,500,500,1000,833,278,333,333,500,570,250,333,250,278,500,500,500,500,500,500,500,500,500,500,333,333,570,570,570,500,930,722,667,722,722,667,611,778,778,389,500,778,667,944,722,778,611,778,722,556,667,722,722,1000,722,722,667,333,278,333,581,500,333,500,556,444,556,444,333,500,556,278,333,556,278,833,556,500,556,556,444,389,333,556,500,722,500,500,444,394,220,394,520,0,0,0,333,500,500,1000,500,500,333,1000,556,333,1000,0,667,0,0,333,333,500,500,350,500,1000,333,1000,389,333,722,0,444,722,250,333,500,500,500,500,220,500,333,747,300,500,570,333,747,333,400,570,300,300,333,556,540,250,333,300,330,500,750,750,750,500,722,722,722,722,722,722,1000,722,667,667,667,667,389,389,389,389,722,722,778,778,778,778,778,570,778,722,722,722,722,722,611,556,500,500,500,500,500,500,722,444,444,444,444,444,278,278,278,278,500,556,500,500,500,500,500,570,500,556,556,556,556,500,556,500] };
+
+  /* --- unicode -> WinAnsi for the characters prose actually uses ---------- */
+  const UNI = {0x2018:145,0x2019:146,0x201C:147,0x201D:148,0x2013:150,0x2014:151,
+    0x2026:133,0x2022:149,0x201A:130,0x201E:132,0x2020:134,0x2021:135,0x2030:137,
+    0x2039:139,0x203A:155,0x0152:140,0x0153:156,0x0160:138,0x0161:154,0x017D:142,
+    0x017E:158,0x0178:159,0x2122:153,0x20AC:128,0x00A0:32};
+
+  function code(ch){
+    const c = ch.codePointAt(0);
+    if(c>=32 && c<=255) return c;
+    if(UNI[c]!==undefined) return UNI[c];
+    return 63; /* ? for anything Times cannot set */
+  }
+  function width(ch, f){ const c=code(ch); return c<32?0:(WID[f][c-32]||0); }
+  function measure(s, f, size){
+    let w=0; for(const ch of s) w+=width(ch,f);
+    return w*size/1000;
+  }
+
+  /* --- typographic pass: straight quotes and hyphens become book marks ---- */
+  function typeset(t){
+    return String(t||"")
+      .replace(/\r\n?/g,"\n")
+      .replace(/---/g,"\u2014").replace(/(\w)--(\w)/g,"$1\u2014$2").replace(/\s--\s/g," \u2014 ")
+      .replace(/\.\.\./g,"\u2026")
+      .replace(/(^|[\s(\[{\u2014\u2013])"/g,"$1\u201C").replace(/"/g,"\u201D")
+      .replace(/(^|[\s(\[{\u2014\u2013])'/g,"$1\u2018")
+      .replace(/'/g,"\u2019");
+  }
+
+  /* --- PDF string escaping ------------------------------------------------ */
+  function pstr(s){
+    let o="";
+    for(const ch of s){
+      const c=code(ch);
+      if(c===40||c===41||c===92) o+="\\"+String.fromCharCode(c);
+      else if(c<32||c>126) o+="\\"+c.toString(8).padStart(3,"0");
+      else o+=String.fromCharCode(c);
+    }
+    return o;
+  }
+
+  /* --- line breaking ------------------------------------------------------ */
+  function wrap(text, maxW, f, size, firstIndent){
+    const words = text.split(/\s+/).filter(Boolean);
+    const lines=[]; let cur=[], curW=0;
+    let avail = maxW - (firstIndent||0);
+    const sp = measure(" ", f, size);
+    for(let i=0;i<words.length;i++){
+      const w = words[i], ww = measure(w,f,size);
+      const add = cur.length? sp+ww : ww;
+      if(cur.length && curW+add > avail){
+        lines.push({words:cur, w:curW, indent: lines.length===0?(firstIndent||0):0});
+        cur=[w]; curW=ww; avail=maxW;
+      } else { cur.push(w); curW+=add; }
+    }
+    if(cur.length) lines.push({words:cur, w:curW, indent: lines.length===0?(firstIndent||0):0});
+    return lines;
+  }
+
+  /* ======================= the document ================================== */
+  function build(opts){
+    const o = Object.assign({
+      title:"Untitled", author:"", chapters:[],
+      readerName:"", note:"", dateLabel:"",
+      pageW:396, pageH:612,            /* 5.5 x 8.5in */
+      mTop:47, mBottom:52, mSide:44,
+      size:11, lead:15, indent:13.2,
+      headSize:8.5, headTrack:0.9, folioSize:9.5,
+      sceneMark:"\u2022 \u2022 \u2022"
+    }, opts||{});
+
+    const colW = o.pageW - o.mSide*2;
+    const topY = o.pageH - o.mTop;              /* baseline of first line */
+    const bottomY = o.mBottom + o.lead;
+    const linesPerPage = Math.floor((topY - bottomY)/o.lead) + 1;
+
+    const pages=[]; let pg=null, y=0;
+
+    function newPage(head, folio){
+      pg = {ops:[], head:!!head, folio:!!folio};
+      pages.push(pg); y = topY;
+      return pg;
+    }
+    function linesLeft(){ return Math.floor((y - o.mBottom)/o.lead); }
+
+    function put(text, f, size, x, yy, opts2){
+      const O = opts2||{};
+      pg.ops.push("BT");
+      if(O.tc) pg.ops.push(O.tc.toFixed(3)+" Tc");
+      if(O.tw) pg.ops.push(O.tw.toFixed(3)+" Tw");
+      pg.ops.push("/F"+f+" "+size+" Tf");
+      pg.ops.push(x.toFixed(2)+" "+yy.toFixed(2)+" Td");
+      pg.ops.push("("+pstr(text)+") Tj");
+      if(O.tw) pg.ops.push("0 Tw");
+      if(O.tc) pg.ops.push("0 Tc");
+      pg.ops.push("ET");
+    }
+    const F={R:1,I:2,B:3};
+
+    function centered(text, f, size, yy, track){
+      const w = measure(text,f,size) + (track? track*(text.length-1):0);
+      put(text, F[f], size, (o.pageW-w)/2, yy, track?{tc:track}:undefined);
+    }
+
+    /* --- paragraph placement with widow / orphan control ----------------- */
+    function paragraph(text, indentFirst){
+      const lines = wrap(text, colW, "R", o.size, indentFirst? o.indent : 0);
+      let i=0;
+      while(i<lines.length){
+        let room = linesLeft();
+        if(room<=0){ newPage(true,true); room = linesLeft(); }
+        const remaining = lines.length - i;
+        /* never strand a single opening line at the foot of a page */
+        if(i===0 && remaining>1 && room===1){ newPage(true,true); room=linesLeft(); }
+        let take = Math.min(room, remaining);
+        /* never carry a single closing line alone to the next page */
+        if(remaining-take===1 && take>=2) take -= 1;
+        for(let k=0;k<take;k++){
+          const L = lines[i+k];
+          const isLast = (i+k)===lines.length-1;
+          const gaps = L.words.length-1;
+          let tw = 0;
+          if(!isLast && gaps>0){
+            const target = colW - L.indent;
+            tw = (target - L.w)/gaps;
+            if(tw > o.size*0.42) tw = 0;   /* leave very loose lines ragged */
+          }
+          put(L.words.join(" "), F.R, o.size, o.mSide + L.indent, y, tw?{tw}:undefined);
+          y -= o.lead;
+        }
+        i += take;
+        if(i<lines.length) newPage(true,true);
+      }
+    }
+
+    function sceneBreak(){
+      if(linesLeft() < 3) { newPage(true,true); return; }
+      y -= o.lead*0.5;
+      centered(o.sceneMark, "R", o.size, y);
+      y -= o.lead*1.5;
+    }
+
+    /* --- front matter ----------------------------------------------------- */
+    newPage(false,false);
+    y = o.pageH*0.62;
+    centered(o.title.toUpperCase(), "B", 19, y, 1.6); y -= 34;
+    if(o.author){ centered(o.author, "R", 12, y, 0.6); }
+
+    newPage(false,false);
+    y = o.mBottom + 150;
+    const stack = [];
+    if(o.readerName) stack.push("Reader copy prepared for "+o.readerName);
+    stack.push("Advance reader copy \u2014 this is a draft in progress");
+    if(o.dateLabel) stack.push(o.dateLabel);
+    if(o.note) stack.push(o.note);
+    stack.push("Please don\u2019t share or quote from this copy.");
+    stack.forEach(s=>{ centered(typeset(s), "I", 9.5, y); y -= 15; });
+
+    /* --- chapters --------------------------------------------------------- */
+    o.chapters.forEach(ch=>{
+      newPage(false,true);                       /* opener: folio, no head */
+      y = o.pageH - o.pageH*0.30;
+      if(ch.number){ centered(String(ch.number).toUpperCase(), "R", 9.5, y, 1.8); y -= 26; }
+      if(ch.title){ centered(typeset(ch.title), "B", 14, y); y -= 34; }
+      else y -= 10;
+
+      const body = typeset(ch.text||"");
+      const blocks = body.split(/\n\s*\n/);
+      let firstOfSection = true;
+      blocks.forEach(b=>{
+        const t = b.trim();
+        if(!t) return;
+        if(/^(#|\*\s*\*\s*\*|\*{3,}|\u2042)$/.test(t)){ sceneBreak(); firstOfSection = true; return; }
+        paragraph(t.replace(/\n/g," "), !firstOfSection);
+        firstOfSection = false;
+      });
+    });
+
+    /* --- running heads and folios ---------------------------------------- */
+    const headText = o.title.toUpperCase();
+    let folioN = 0;
+    pages.forEach((p)=>{
+      const n = p.folio ? ++folioN : 0;
+      pg = p;
+      if(p.head){
+        const w = measure(headText,"R",o.headSize) + o.headTrack*(headText.length-1);
+        put(headText, F.R, o.headSize, (o.pageW-w)/2, o.pageH-o.mTop+20, {tc:o.headTrack});
+      }
+      if(p.folio){
+        const s = String(n);
+        put(s, F.R, o.folioSize, (o.pageW-measure(s,"R",o.folioSize))/2, o.mBottom-20);
+      }
+    });
+
+    return assemble(pages, o);
+  }
+
+  /* ======================= PDF file assembly ============================== */
+  function assemble(pages, o){
+    const objs=[];                        /* 1-indexed bodies */
+    const push = s => { objs.push(s); return objs.length; };
+
+    const kidIds=[];
+    const pagesId = 2;
+    push("<< /Type /Catalog /Pages 2 0 R >>");     /* 1 */
+    push("");                                       /* 2 placeholder: Pages */
+    const fR = push("<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman /Encoding /WinAnsiEncoding >>");
+    const fI = push("<< /Type /Font /Subtype /Type1 /BaseFont /Times-Italic /Encoding /WinAnsiEncoding >>");
+    const fB = push("<< /Type /Font /Subtype /Type1 /BaseFont /Times-Bold /Encoding /WinAnsiEncoding >>");
+
+    pages.forEach(p=>{
+      const stream = p.ops.join("\n");
+      const cid = push("<< /Length "+stream.length+" >>\nstream\n"+stream+"\nendstream");
+      const pid = push("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 "+o.pageW+" "+o.pageH+"] "+
+        "/Resources << /Font << /F1 "+fR+" 0 R /F2 "+fI+" 0 R /F3 "+fB+" 0 R >> >> "+
+        "/Contents "+cid+" 0 R >>");
+      kidIds.push(pid);
+    });
+    objs[pagesId-1] = "<< /Type /Pages /Count "+kidIds.length+" /Kids ["+
+      kidIds.map(i=>i+" 0 R").join(" ")+"] >>";
+
+    const infoId = push("<< /Title ("+pstr(o.title)+") /Author ("+pstr(o.author||"")+
+      ") /Creator (Anastasia\u2019s Writing Room) /Producer (Anastasia\u2019s Writing Room) >>");
+
+    let out = "%PDF-1.4\n%\u00E2\u00E3\u00CF\u00D3\n";
+    const offs=[];
+    objs.forEach((body,i)=>{
+      offs.push(out.length);
+      out += (i+1)+" 0 obj\n"+body+"\nendobj\n";
+    });
+    const xref = out.length;
+    out += "xref\n0 "+(objs.length+1)+"\n0000000000 65535 f \n";
+    offs.forEach(off=>{ out += String(off).padStart(10,"0")+" 00000 n \n"; });
+    out += "trailer\n<< /Size "+(objs.length+1)+" /Root 1 0 R /Info "+infoId+" 0 R >>\n"+
+           "startxref\n"+xref+"\n%%EOF";
+
+    const bytes = new Uint8Array(out.length);
+    for(let i=0;i<out.length;i++) bytes[i] = out.charCodeAt(i) & 0xFF;
+    return bytes;
+  }
+
+  return { build, typeset, measure };
+})();
+
+
 /* ==================== EXPORT ENGINE (no external libraries) ==================== */
 const _esc = s => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 function _run(text, p={}){
@@ -942,6 +1199,33 @@ function runExport(project, subject, fmt){
   if(fmt==="docx") download(base+".docx", new Blob([buildDocx(blocks)],{type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"}));
   else if(fmt==="md") download(base+".md", new Blob([blocksToMd(blocks)],{type:"text/markdown"}));
   else printHTML(docHTML(blocks));
+}
+
+/* ---------- READER COPY: a bound-feeling PDF to share with early readers ---------- */
+const _CHNUM=["One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve",
+"Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen","Twenty","Twenty-one",
+"Twenty-two","Twenty-three","Twenty-four","Twenty-five","Twenty-six","Twenty-seven","Twenty-eight",
+"Twenty-nine","Thirty","Thirty-one","Thirty-two","Thirty-three","Thirty-four","Thirty-five",
+"Thirty-six","Thirty-seven","Thirty-eight","Thirty-nine","Forty"];
+function chaptersForReader(project){
+  return (project.sections||[])
+    .filter(s=>(s.content||"").trim())
+    .map((s,i)=>({ number:_CHNUM[i]||String(i+1), title:s.title||"", text:s.content||"" }));
+}
+function runReaderCopy(project, meta){
+  const chapters=chaptersForReader(project);
+  if(!chapters.length) throw new Error("There are no written chapters yet \u2014 write something in the Writing tab first.");
+  const bytes=ReaderPDF.build({
+    title: project.title||"Untitled",
+    author: (meta&&meta.author)||"",
+    chapters,
+    readerName: (meta&&meta.readerName)||"",
+    dateLabel: "Draft of "+new Date().toLocaleDateString(undefined,{day:"numeric",month:"long",year:"numeric"}),
+    note: (meta&&meta.note)||"",
+    pageW: (meta&&meta.trim==="6x9")?432:396,
+    pageH: (meta&&meta.trim==="6x9")?648:612
+  });
+  download(slug(project.title)+"-reader-copy.pdf", new Blob([bytes],{type:"application/pdf"}));
 }
 
 /* ---------- small icons ---------- */
@@ -3867,6 +4151,17 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
 /* ---------------- EXPORT MODAL ---------------- */
 function ExportModal({project, close}){
   const [subject,setSubject]=useState("everything");
+  const [author,setAuthor]=useState(()=>store.get("ss_author",""));
+  const [readerName,setReaderName]=useState("");
+  const [note,setNote]=useState("");
+  const [trim,setTrim]=useState("5.5x8.5");
+  const [rcErr,setRcErr]=useState("");
+  const writtenChapters=(project.sections||[]).filter(s=>(s.content||"").trim()).length;
+  const doReaderCopy=()=>{
+    setRcErr("");
+    try{ store.set("ss_author",author); runReaderCopy(project,{author,readerName,note,trim}); close(); }
+    catch(e){ setRcErr(e.message||"Something went wrong building the PDF."); }
+  };
   const counts={outline:project.chapters.length,characters:project.characters.length,world:project.world.length,writing:project.sections.length};
   const subjects=[["everything","Everything"],["outline","Outline"],["characters","Characters"],["world","World"],["writing","Writing"]];
   const go=(fmt)=>{ runExport(project,subject,fmt); if(fmt!=="pdf") close(); };
@@ -3892,6 +4187,31 @@ function ExportModal({project, close}){
         </div>
         <div className="privacy" style={{marginTop:16}}>
           Word and Markdown download straight to your device. PDF opens your browser's print dialog — choose <b>Save as PDF</b> as the destination.
+        </div>
+
+        <div style={{marginTop:22,paddingTop:18,borderTop:"1px solid var(--line)"}}>
+          <label>Reader copy</label>
+          <p className="m" style={{marginTop:2}}>
+            A bound PDF you can send to early readers — title page, chapter openings, running heads and page numbers.
+            It uses your written chapters{writtenChapters?` (${writtenChapters} so far)`:""}, in order.
+          </p>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:10}}>
+            <input value={author} onChange={e=>setAuthor(e.target.value)} placeholder="Your name, as it should appear" />
+            <input value={readerName} onChange={e=>setReaderName(e.target.value)} placeholder="Prepared for… (optional)" />
+          </div>
+          <input style={{marginTop:8}} value={note} onChange={e=>setNote(e.target.value)}
+            placeholder="A note on the version — e.g. Part one of three (optional)" />
+          <div className="chips" style={{marginTop:10}}>
+            {[["5.5x8.5","5.5 × 8.5 in"],["6x9","6 × 9 in"]].map(([id,lbl])=>(
+              <button key={id} className="chip" style={trim===id?selStyle:{}} onClick={()=>setTrim(id)}>{lbl}</button>
+            ))}
+          </div>
+          <button className="btn btn-primary" style={{marginTop:12,width:"100%",justifyContent:"center"}}
+            onClick={doReaderCopy} disabled={!writtenChapters}>
+            ↓ Download reader copy .pdf
+          </button>
+          {!writtenChapters && <p className="m" style={{marginTop:8}}>Write a chapter in the Writing tab and this will light up.</p>}
+          {rcErr && <p className="m" style={{marginTop:8,color:"var(--red)"}}>{rcErr}</p>}
         </div>
         <div style={{display:"flex",justifyContent:"flex-end",marginTop:16}}>
           <button className="btn btn-ghost" onClick={close}>Done</button>
