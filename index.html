@@ -349,6 +349,63 @@
   /* layout cols */
   .split{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start;}
   .split.solo{grid-template-columns:minmax(0,1fr);}
+
+  /* ---------------- NIB ---------------- */
+  .nib-rest{position:fixed;right:26px;bottom:26px;width:52px;height:52px;border-radius:50%;
+    background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--muted);
+    display:grid;place-items:center;z-index:60;transition:color .2s,border-color .2s,transform .2s;}
+  .nib-rest:hover{color:var(--indigo);border-color:var(--indigo);transform:translateY(-2px);}
+  .nib-rest.stirred{color:var(--indigo);border-color:var(--indigo);}
+  .nib-rest .quill{width:25px;height:25px;}
+  .nib-rest .nbadge{position:absolute;top:-3px;right:-3px;min-width:19px;height:19px;border-radius:999px;
+    background:var(--indigo);color:#fff;font-family:'IBM Plex Mono';font-size:10.5px;
+    display:flex;align-items:center;justify-content:center;padding:0 5px;}
+  @keyframes nibbreathe{0%,100%{transform:scale(1);}50%{transform:scale(1.09);}}
+  .nib-rest.stirred{animation:nibbreathe 2.3s ease-in-out 2;}
+  .nib-panel{position:fixed;right:26px;bottom:90px;width:322px;max-width:calc(100vw - 52px);
+    max-height:min(560px,calc(100vh - 130px));overflow:auto;background:var(--panel);
+    border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px 17px;z-index:60;
+    animation:nibin .28s ease both;}
+  @keyframes nibin{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+  .nib-panel .np-head{display:flex;align-items:center;gap:9px;margin-bottom:13px;}
+  .nib-panel .np-face{width:32px;height:32px;border-radius:50%;background:var(--indigo-soft);color:var(--indigo);display:grid;place-items:center;flex:0 0 auto;}
+  .nib-panel .np-face .quill{width:18px;height:18px;}
+  .nib-note{border-left:2px solid var(--indigo);padding:1px 0 1px 13px;margin-bottom:17px;}
+  .nib-note p{font-family:'Newsreader',Georgia,serif;font-style:italic;font-size:14.5px;line-height:1.62;color:#463F33;margin:0 0 7px;}
+  .nib-note .na{display:flex;gap:12px;flex-wrap:wrap;}
+  .nib-note .na button{border:none;background:none;padding:0;font-size:11.5px;color:var(--indigo);cursor:pointer;}
+  .nib-note .na button.dim{color:var(--muted);}
+  .nib-empty{font-family:'Newsreader';font-style:italic;font-size:14.5px;color:var(--muted);line-height:1.6;margin-bottom:15px;}
+  .nib-door{border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin-bottom:9px;}
+  .nib-door .dt{font-size:13px;font-weight:500;margin-bottom:3px;}
+  .nib-door .dd{font-size:12.5px;color:var(--muted);line-height:1.5;}
+  .nib-door.out{background:var(--amber-soft);border-color:#E7D2B4;}
+  .nib-door.out .dd{color:#6B5231;}
+  .nib-stuck{width:100%;border:1px dashed var(--line);background:none;border-radius:10px;padding:10px;font-size:12.5px;color:var(--muted);cursor:pointer;}
+  .nib-stuck:hover{border-color:var(--indigo);color:var(--indigo);}
+  .rope-band{display:flex;gap:12px;align-items:flex-start;background:var(--indigo-soft);border-radius:12px;padding:13px 15px;margin-bottom:14px;}
+  .rope-band .rb-q{font-family:'Newsreader',Georgia,serif;font-style:italic;font-size:15.5px;line-height:1.55;color:#0B4F49;}
+  body.focusing .nib-rest,body.focusing .nib-panel{opacity:.35;}
+  body.focusing .nib-rest:hover,body.focusing .nib-panel:hover{opacity:1;}
+
+  /* ---------------- DELETING ---------------- */
+  .btn-danger{background:#B3261E !important;border-color:#B3261E !important;color:#fff !important;}
+  .btn-danger:hover{background:#8F1D17 !important;border-color:#8F1D17 !important;}
+  .mini-danger{color:#B3261E !important;}
+  .mini-danger:hover{color:#8F1D17 !important;}
+  .confirm-modal{max-width:420px;}
+  .confirm-modal h2{color:#B3261E;}
+  .confirm-what{font-family:'Newsreader',Georgia,serif;font-size:17px;background:var(--paper);border-radius:9px;padding:11px 14px;margin:12px 0 4px;}
+  @keyframes crumple{
+    0%  {transform:scale(1) rotate(0deg);            opacity:1;   filter:blur(0);}
+    22% {transform:scale(.955) rotate(-1.4deg) skewX(2deg);        filter:blur(.4px);}
+    42% {transform:scale(.80) rotate(2.6deg)  skewX(-4deg);}
+    62% {transform:scale(.52) rotate(-5deg)   skewX(6deg); opacity:.85;}
+    82% {transform:scale(.24) rotate(11deg);  opacity:.45; filter:blur(1.4px);}
+    100%{transform:scale(.05) rotate(24deg) translateY(38px); opacity:0; filter:blur(3px);}
+  }
+  .crumpling{animation:crumple .62s cubic-bezier(.4,.02,.7,.9) forwards;transform-origin:52% 46%;pointer-events:none;}
+  @media (prefers-reduced-motion:reduce){ .crumpling{animation:none;opacity:0;transition:opacity .2s;} }
   @media(max-width:980px){.split{grid-template-columns:1fr;} .choice-grid,.choice-grid.three{grid-template-columns:1fr;}}
   .section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap;}
   .section-head h2{font-size:22px;margin:0;}
@@ -1688,6 +1745,9 @@ function PhilosophyBox(){
 }
 
 function Dashboard({projects, open, onNew, onDelete, onBackup, onRestore, awayDays}){
+  const [confirmDialog, askDelete] = useConfirmDelete();
+  const onAskDelete = (p)=>askDelete(p.title||"Untitled project", ()=>onDelete(p.id),
+    `${wordCountOf(p).toLocaleString()} words, plus every character, world note and chapter in it.`);
   const restoreRef = React.useRef(null);
   const [restoreMsg, setRestoreMsg] = useState("");
   const [fCat,setFCat]=useState("all");
@@ -1706,6 +1766,8 @@ function Dashboard({projects, open, onNew, onDelete, onBackup, onRestore, awayDa
   });
 
   return (
+    <>
+    {confirmDialog}
     <div className="content">
       <div className="dash-head">
         <div>
@@ -1805,7 +1867,7 @@ function Dashboard({projects, open, onNew, onDelete, onBackup, onRestore, awayDa
                 <div className="pc-metric"><div className="n">{drafted}/{(p.chapters||[]).length||"–"}</div><div className="l">drafted</div></div>
                 <div className="pc-metric"><div className="n">{(p.characters||[]).length}</div><div className="l">characters</div></div>
                 <div className="pc-metric"><div className="n">{(p.world||[]).length}</div><div className="l">world</div></div>
-                <div style={{marginLeft:"auto"}}><button className="pc-del" onClick={e=>{e.stopPropagation(); if(confirm(`Delete "${p.title}"? This can't be undone.`)) onDelete(p.id);}}>Delete</button></div>
+                <div style={{marginLeft:"auto"}}><button className="pc-del mini-danger" onClick={e=>{e.stopPropagation(); onAskDelete(p);}}>Delete</button></div>
               </div>
             </div>
           );
@@ -1818,6 +1880,7 @@ function Dashboard({projects, open, onNew, onDelete, onBackup, onRestore, awayDa
         Used as inspiration, in our own words — not affiliated with or endorsed by the author. If this room helps you, please support his book.
       </div>
     </div>
+    </>
   );
 }
 
@@ -2176,6 +2239,7 @@ function ReviewTab({project, upd, onJumpToDoc, onJumpToChar, setTab}){
   const reviews = project.reviews||[];
   const setStatus=(id,status)=>upd({reviews:reviews.map(r=>r.id===id?{...r,status}:r)});
   const del=(id)=>upd({reviews:reviews.filter(r=>r.id!==id)});
+  const [confirmDialog, askDelete] = useConfirmDelete();
   const clearResolved=()=>upd({reviews:reviews.filter(r=>r.status==="open"||r.status==="backlog")});
 
   const counts={};
@@ -2184,6 +2248,8 @@ function ReviewTab({project, upd, onJumpToDoc, onJumpToChar, setTab}){
     .sort((a,b)=>(b.created||0)-(a.created||0));
 
   return (
+    <>
+    {confirmDialog}
     <div>
       <div className="section-head">
         <div><h2>Review</h2><div className="sub">Continuity flags, editorial notes, and armature-drift results file here automatically — so nothing worth fixing gets lost in the scroll. Resolve them, shelve them for later, or let them go. Nothing is ever changed for you.</div></div>
@@ -2228,6 +2294,7 @@ function ReviewTab({project, upd, onJumpToDoc, onJumpToChar, setTab}){
             );
           })}
     </div>
+    </>
   );
 }
 
@@ -2561,6 +2628,7 @@ function SpineRoadmap({project, upd, ai, openSettings, logReview}){
   const addChapAt=(k)=>upd({chapters:[...chapters,{id:uid(),title:`${unitName(project.type)} ${chapters.length+1}`,summary:"",beat:k}]});
   const editChap=(id,patch)=>upd({chapters:chapters.map(c=>c.id===id?{...c,...patch}:c)});
   const delChap=(id)=>upd({chapters:chapters.filter(c=>c.id!==id)});
+  const [confirmDialog, askDelete] = useConfirmDelete();
   const moveChap=(id,dir)=>{
     const i=chapters.findIndex(c=>c.id===id); const j=i+dir;
     if(i<0||j<0||j>=chapters.length) return;
@@ -2642,6 +2710,8 @@ function SpineRoadmap({project, upd, ai, openSettings, logReview}){
   const verdictClass=(v)=> v==="drifts"?"high":v==="partly"?"medium":"low";
 
   return (
+    <>
+    {confirmDialog}
     <div>
       <div className="howbox">
         <button className="how-toggle" onClick={()=>setShowHow(v=>!v)}>
@@ -2742,7 +2812,7 @@ function SpineRoadmap({project, upd, ai, openSettings, logReview}){
               <input value={b.act||""} placeholder="Act" onChange={e=>editBeatDef(i,{act:e.target.value})} />
               <input value={b.step||""} placeholder="Beat name" onChange={e=>editBeatDef(i,{step:e.target.value})} />
               <input value={b.purpose||""} placeholder="Purpose (what this beat does)" onChange={e=>editBeatDef(i,{purpose:e.target.value})} />
-              <button className="slot-mini" onClick={()=>delBeatDef(i)}>✕</button>
+              <button className="slot-mini mini-danger" title="Remove this beat" onClick={()=>askDelete(b.step||"this beat", ()=>delBeatDef(i))}>✕</button>
             </div>
           ))}
           <div className="toolbar">
@@ -2796,7 +2866,7 @@ function SpineRoadmap({project, upd, ai, openSettings, logReview}){
                       <option value="">—</option>
                       {beats.map(x=><option key={x.k} value={x.k}>{x.step}</option>)}
                     </select>
-                    <button className="slot-mini" onClick={()=>delChap(c.id)}>✕</button>
+                    <button className="slot-mini mini-danger" title="Delete" onClick={()=>askDelete(c.title||"this entry", ()=>delChap(c.id))}>✕</button>
                   </div>
                 ))}
                 <button className="slot-add" onClick={()=>addChapAt(b.k)}>+ {unitName(project.type).toLowerCase()}</button>
@@ -2806,7 +2876,7 @@ function SpineRoadmap({project, upd, ai, openSettings, logReview}){
                   <div className="slot-item" key={s.id}>
                     <input className="si-t" value={s.title} onChange={e=>editScene(s.id,{title:e.target.value})} />
                     <span className="mono" style={{fontSize:9,color:s.content&&s.content.trim()?"var(--sage)":"var(--muted)"}}>{s.content&&s.content.trim()?"written":"idea"}</span>
-                    <button className="slot-mini" onClick={()=>delScene(s.id)}>✕</button>
+                    <button className="slot-mini mini-danger" title="Delete" onClick={()=>askDelete(s.title||"this scene", ()=>delScene(s.id))}>✕</button>
                   </div>
                 ))}
                 <button className="slot-add" onClick={()=>addSceneAt(b.k)}>+ scene <span style={{opacity:.6}}>(write it in the Writing tab)</span></button>
@@ -2822,6 +2892,7 @@ function SpineRoadmap({project, upd, ai, openSettings, logReview}){
           : <>Structure draws on standard manuscript-ordering craft — the "mixtape" approach, door-in/door-out bookends, and thematic movements — as taught across the poetry & collection editing community, in our own words.</>}
       </div>
     </div>
+    </>
   );
 }
 
@@ -2904,6 +2975,7 @@ function CharactersTab({project, upd, ai, openSettings, focusCharId, onFocusCons
   const chars=project.characters||[];
   const edit=(id,patch)=>upd({characters:chars.map(c=>c.id===id?{...c,...patch}:c)});
   const del=(id)=>upd({characters:chars.filter(c=>c.id!==id)});
+  const [confirmDialog, askDelete] = useConfirmDelete();
   const add=()=>{ if(!newName.trim())return; const c={id:uid(),name:newName.trim(),role:"",notes:"",tier:newTier,source:"manual"}; upd({characters:[...chars,c]}); setNewName(""); setOpenId(c.id); };
 
   const counts={all:chars.length, main:0, supporting:0, ancillary:0};
@@ -3000,6 +3072,8 @@ function CharactersTab({project, upd, ai, openSettings, focusCharId, onFocusCons
   };
 
   return (
+    <>
+    {confirmDialog}
     <div>
       <div className="section-head">
         <div><h2>Characters</h2><div className="sub">Auto-populated from your outline and writing. Every field below is a writing prompt — a character exists to struggle and change.</div></div>
@@ -3092,7 +3166,7 @@ function CharactersTab({project, upd, ai, openSettings, focusCharId, onFocusCons
                                 {TIERS.map(([id,l])=><option key={id} value={id}>{l}</option>)}
                               </select>
                               <span className={"tag "+(c.source==="manual"?"manual":c.source==="writing"?"writing":"outline")}>{c.source||"manual"}</span>
-                              <button className="btn btn-ghost btn-sm" onClick={()=>del(c.id)}>Delete</button>
+                              <button className="btn btn-danger btn-sm" onClick={()=>askDelete(c.name||"this character", ()=>del(c.id), "Everything written on their card goes with them.")}>Delete</button>
                             </div>
                             {(()=>{ const apps=appearsIn(c.name); return apps.length? (
                               <div className="appears">
@@ -3161,6 +3235,7 @@ function CharactersTab({project, upd, ai, openSettings, focusCharId, onFocusCons
         </div>
       </div>
     </div>
+    </>
   );
 }
 
@@ -3228,6 +3303,7 @@ function WorldTab({project, upd, ai, openSettings, onJumpToDoc, logReview}){
 
   const edit=(id,patch)=>upd({world:world.map(w=>w.id===id?{...w,...patch}:w)});
   const del=(id)=>upd({world:world.filter(w=>w.id!==id)});
+  const [confirmDialog, askDelete] = useConfirmDelete();
   const add=()=>{ if(!newName.trim())return; const w={id:uid(),category:newCat,name:newName.trim(),detail:"",source:"manual"}; upd({world:[...world,w]}); setNewName(""); setOpenId(w.id); };
 
   const prose=[...(project.sections||[]),...(project.scenes||[])].map(s=>s.content||"").join("\n");
@@ -3317,6 +3393,8 @@ function WorldTab({project, upd, ai, openSettings, onJumpToDoc, logReview}){
   }
 
   return (
+    <>
+    {confirmDialog}
     <div>
       <div className="section-head">
         <div><h2>World</h2><div className="sub">The place, the era, the rules, the mood — as vital as your cast. Mention counts show what's load-bearing in your actual prose.</div></div>
@@ -3461,7 +3539,7 @@ function WorldTab({project, upd, ai, openSettings, onJumpToDoc, logReview}){
                                 {WORLD_CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
                               </select>
                               <span className={"tag "+(w.source==="manual"?"manual":w.source==="upload"?"writing":"outline")}>{w.source||"manual"}</span>
-                              <button className="btn btn-ghost btn-sm" onClick={()=>del(w.id)}>Delete</button>
+                              <button className="btn btn-danger btn-sm" onClick={()=>askDelete(w.name||"this element", ()=>del(w.id))}>Delete</button>
                             </div>
                             <textarea className="cb" style={{marginTop:8,minHeight:64,border:"1px solid var(--line)",borderRadius:8,padding:"8px 10px",background:"#fff"}} value={w.detail} onChange={e=>edit(w.id,{detail:e.target.value})} placeholder="Describe it — what it looks like, how it works, why it matters to the story." />
                             {(()=>{ const apps=appearsIn(w.name); return apps.length? (
@@ -3492,6 +3570,7 @@ function WorldTab({project, upd, ai, openSettings, onJumpToDoc, logReview}){
         </div>
       </div>
     </div>
+    </>
   );
 }
 
@@ -3597,6 +3676,7 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
   const [flags, setFlags] = useState(null);
   const [flagBusy, setFlagBusy] = useState(false);
   const [readAll, setReadAll] = useState(false);
+  const [confirmDialog, askDelete] = useConfirmDelete();
   const [writeFont, setWriteFont] = useState(()=>store.get("ss_writefont","serif"));
   const [pageWidth, setPageWidth] = useState(()=>store.get("ss_pagewidth","wide"));
   const pickWidth = w => { setPageWidth(w); store.set("ss_pagewidth", w); };
@@ -3668,7 +3748,71 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
     upd({sections:[...sections, s]}); setActive(s.id);
   };
   const editSection = (id,patch)=>upd({sections:sections.map(s=>s.id===id?{...s,...patch}:s)});
+  /* ---------- NIB ---------- */
+  const NIB_SEAM_MS = 11000;       // pause before a seam counts
+  const NIB_MIN_WORDS = 25;        // new words needed since the last read
+  const NIB_MAX_SKIMS = 5;         // API reads allowed per session
+  const [nibNotes, setNibNotes] = useState([]);
+  const [nibOpen, setNibOpen]   = useState(false);
+  const [nibMode, setNibMode]   = useState("notes");
+  const [nibStirred, setNibStirred] = useState(false);
+  const [nibSkims, setNibSkims] = useState(0);
+  const nibAuto  = useRef(false);   // one self-opening note per session
+  const nibTimer = useRef(null);
+  const nibMark  = useRef(0);       // word count at the last read
+  const nibBusy  = useRef(false);
+
+  const stir = () => { setNibStirred(true); setTimeout(()=>setNibStirred(false), 5000); };
+
+  async function nibSkim(){
+    if(!ai.ready || nibBusy.current || nibSkims>=NIB_MAX_SKIMS) return;
+    const text = (current && current.content) || "";
+    const words = text.trim().split(/\s+/).filter(Boolean);
+    if(words.length - nibMark.current < NIB_MIN_WORDS) return;
+    nibBusy.current = true;
+    const recent = words.slice(-900).join(" ");
+    const avoid = (project.nibAvoid||[]).join("; ");
+    const cast = (project.characters||[]).slice(0,12).map(c=>c.name).join(", ");
+    try{
+      const out = await ai.run({
+        maxTokens:220,
+        system:"You are a careful, warm reader looking over a novelist's shoulder. You ask ONE short question about what you just read \u2014 something only an attentive reader would notice. You never rewrite, never suggest wording, never praise generically, never mention word counts or productivity. Return ONLY a JSON object.",
+        prompt:`Novel: "${project.title}"${project.genre?" ("+project.genre+")":""}. ${project.armature?'Its point: '+project.armature+". ":""}${cast?"Cast so far: "+cast+". ":""}\n\nHere is the most recent stretch of the author's prose:\n"""${recent}"""\n\n${avoid?"Avoid these kinds of question: "+avoid+".\\n\\n":""}Return {"q":"one question, under 30 words, about a specific detail, choice, or absence in this passage","topic":"one or two words naming the kind of question, e.g. symbolism, pacing, character, word-choice","confidence":0-1}. Only ask if you genuinely noticed something; if not, set confidence low.`
+      });
+      const j = parseJSON(out);
+      nibMark.current = words.length;
+      setNibSkims(n=>n+1);
+      if(j && j.q && (j.confidence===undefined || j.confidence>=0.55)){
+        const note = {id:uid(), q:j.q, topic:j.topic||""};
+        setNibNotes(ns=>[note, ...ns]);
+        if(!nibAuto.current){ nibAuto.current = true; setNibMode("notes"); setNibOpen(true); }
+        else stir();
+      }
+    }catch(e){ /* stay quiet on failure — the page matters more */ }
+    nibBusy.current = false;
+  }
+
+  /* a seam is: you stopped typing, at the end of a sentence or a paragraph */
+  const nibTouch = (text) => {
+    clearTimeout(nibTimer.current);
+    nibTimer.current = setTimeout(()=>{
+      const t=(text||"").replace(/\s+$/,"");
+      const atSeam = /[.!?\u201d\u2019"']$/.test(t) || /\n\s*$/.test(text||"");
+      if(atSeam) nibSkim();
+    }, NIB_SEAM_MS);
+  };
+  useEffect(()=>()=>clearTimeout(nibTimer.current), []);
+  useEffect(()=>{ const w=((current&&current.content)||"").trim().split(/\s+/).filter(Boolean).length;
+    nibMark.current = w; }, [active]);
+
+  const nibLess = (n)=>{ if(n.topic) upd({nibAvoid:[...new Set([...(project.nibAvoid||[]), n.topic])].slice(-8)});
+    setNibNotes(ns=>ns.filter(x=>x.id!==n.id)); };
+  const nibDrop = (n)=>setNibNotes(ns=>ns.filter(x=>x.id!==n.id));
+  const tieRope = (txt)=>{ upd({rope:{text:txt, at:Date.now()}}); setNibOpen(false); };
+
+  const [crumpling, setCrumpling] = useState(false);
   const delSection = (id)=>{ const rest=sections.filter(s=>s.id!==id); upd({sections:rest}); if(active===id) setActive(rest[0]?.id||null); };
+  const crumpleThenDelete = (id, fn)=>{ setCrumpling(true); setTimeout(()=>{ setCrumpling(false); fn(id); }, 620); };
   const toggleFocus = (fid)=>{ const has=project.editorFocus.includes(fid); upd({editorFocus: has?project.editorFocus.filter(x=>x!==fid):[...project.editorFocus,fid]}); };
 
   async function summarize(){
@@ -3921,6 +4065,18 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
   }
 
   return (
+    <>
+    {confirmDialog}
+    <button className={"nib-rest"+(nibStirred?" stirred":"")} title="Nib" aria-label="Open Nib"
+      onClick={()=>{ if(nibOpen && nibMode==="notes") setNibOpen(false); else { setNibMode("notes"); setNibOpen(true); } }}>
+      <Quill />
+      {nibNotes.length>0 && <span className="nbadge">{nibNotes.length}</span>}
+    </button>
+    {nibOpen && <NibPanel project={project} ai={ai} notes={nibNotes} mode={nibMode}
+      unit={unitName(project.type).toLowerCase()} skimsLeft={Math.max(0,5-nibSkims)}
+      onAnswer={nibDrop} onLater={nibDrop} onLess={nibLess}
+      onStuck={()=>setNibMode("doors")} onNotes={()=>setNibMode("notes")}
+      onClose={()=>setNibOpen(false)} onRope={tieRope} />}
     <div className={"split"+(toolsOpen?"":" solo")}>
       <div>
         <div className="desk-status">
@@ -3958,7 +4114,11 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
           <div className="toolbar" style={{marginTop:0,marginBottom:14}}>
             <button className="btn btn-sm" onClick={()=>kind==="scenes"?addScene():addSection()}>+ New {(kind==="scenes"?"scene":primaryUnit(project.type).toLowerCase())}</button>
             {sections.length>=1 && kind==="chapters" && <button className={"btn btn-sm"+(readAll?" btn-primary":"")} onClick={()=>{ const nv=!readAll; setReadAll(nv); if(nv) setEdScope("whole"); }}>{readAll?"\u270E Back to writing":"\uD83D\uDCD6 Read the whole draft"}</button>}
-            {current && kind==="chapters" && <button className="btn btn-ghost btn-sm" onClick={()=>delSection(current.id)}>Delete this {unitName(project.type).toLowerCase()}</button>}
+            {current && kind==="chapters" && <button className="btn btn-danger btn-sm"
+              onClick={()=>askDelete(current.title||"Untitled",
+                ()=>crumpleThenDelete(current.id, delSection),
+                `${wordCount.toLocaleString()} words will be thrown away.`)}>
+              Delete this {unitName(project.type).toLowerCase()}</button>}
           </div>
           <RollingTip type={project.type} />
         </div>}
@@ -4040,7 +4200,16 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
                   <div className="wc">{sections.reduce((n,x)=>n+((x.content||"").trim()? x.content.trim().split(/\s+/).length:0),0).toLocaleString()} words total · character names link to their cards</div>
                 </div>
               ) : current && <>
-                <div className={"sheet wf-"+writeFont+" pw-"+pageWidth}>
+                {project.rope && project.rope.text && (Date.now()-project.rope.at > 3*3600*1000) && (
+                  <div className="rope-band hide-in-focus">
+                    <div style={{flex:1}}>
+                      <div className="mono" style={{fontSize:9.5,marginBottom:5}}>The rope you left</div>
+                      <div className="rb-q">{project.rope.text}</div>
+                    </div>
+                    <button className="btn btn-sm btn-ghost" onClick={()=>upd({rope:null})}>Picked it up</button>
+                  </div>
+                )}
+                <div className={"sheet wf-"+writeFont+" pw-"+pageWidth+(crumpling?" crumpling":"")}>
                   <div className="sh-title">
                     <input value={current.title} onChange={e=>editSection(current.id,{title:e.target.value})} placeholder="Untitled" />
                     <select value={kindOf(current)} onChange={e=>editSection(current.id,{kind:e.target.value})}
@@ -4051,7 +4220,7 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
                   </div>
                   <div className="page">
                     <textarea ref={pageRef} className="write-area" value={current.content}
-                      onChange={e=>{editSection(current.id,{content:e.target.value}); growPage();}}
+                      onChange={e=>{editSection(current.id,{content:e.target.value}); growPage(); nibTouch(e.target.value);}}
                       placeholder={scaffold(project.type)? "Formatting scaffold is filled in — write over it." : "One sentence is enough to start."} />
                   </div>
                 </div>
@@ -4127,7 +4296,8 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
                   {curScene && <>
                     <div className="add-inline" style={{marginBottom:8}}>
                       <input value={curScene.title} onChange={e=>editScene(curScene.id,{title:e.target.value})} style={{fontFamily:"Fraunces",fontSize:18,border:"none",background:"none"}} />
-                      <button className="btn btn-ghost btn-sm" onClick={()=>delScene(curScene.id)}>Delete</button>
+                      <button className="btn btn-danger btn-sm"
+                        onClick={()=>askDelete(curScene.title||"Untitled scene", ()=>delScene(curScene.id))}>Delete</button>
                     </div>
                     <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10,alignItems:"center"}}>
                       <select className="world-select" value={curScene.beat||""} onChange={e=>editScene(curScene.id,{beat:e.target.value})}>
@@ -4276,7 +4446,122 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
         </div>
       </div>
     </div>
+    </>
   );
+}
+
+/* ---------------- NIB: the companion ---------------- */
+function Quill(){
+  return (
+    <svg className="quill" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20.2 3.8C16.4 4.6 12.4 7.2 10.4 10.4c-1.5 2.4-2 4.3-2.1 5.6"/>
+      <path d="M20.2 3.8c.7 3.8-.2 7.6-2.6 10.1-1.9 2-5 2.4-9.3 2.1"/>
+      <path d="M20.2 3.8 8.3 15.9"/>
+      <path d="M8.3 15.9 4.6 19.7"/>
+      <path d="M16.3 7.6 13.1 6.6M17.7 11.3l-3.1.5"/>
+      <circle cx="3.7" cy="20.6" r="0.85" fill="currentColor" stroke="none"/>
+    </svg>
+  );
+}
+
+/* Doors are local — they never need a key, because being stuck shouldn't cost anything. */
+const NIB_DOORS = (unit, sideDoor) => ([
+  {t:"A smaller door", d:"Write one sentence. Any sentence. That's the whole ask, and then you're free to go."},
+  {t:"A side door", d: sideDoor || "Write something that lives in your world but sits outside the plot \u2014 a letter, a rumour, a list someone keeps. Ten minutes, no stakes."},
+  {t:"The out door", d:"Close this and go do something else. The "+unit+" keeps. Sentences tend to solve themselves on a walk.", out:true}
+]);
+
+function NibPanel({project, ai, notes, onAnswer, onLater, onLess, onStuck, mode, onNotes, onClose, onRope, unit, skimsLeft}){
+  const [ropeText, setRopeText] = useState("");
+  return (
+    <div className="nib-panel">
+      <div className="np-head">
+        <div className="np-face"><Quill /></div>
+        <div style={{flex:1}}>
+          <div style={{fontSize:13,fontWeight:500}}>Nib</div>
+          <div style={{fontSize:11.5,color:"var(--muted)"}}>
+            {mode==="doors" ? "three ways through" : ai.ready ? "reading along" : "reading is off until you add a key"}
+          </div>
+        </div>
+        <button className="btn btn-ghost btn-sm" style={{padding:"2px 6px"}} onClick={onClose}>close</button>
+      </div>
+
+      {mode==="doors" ? (
+        <div>
+          <p style={{fontFamily:"'Newsreader'",fontStyle:"italic",fontSize:14.5,lineHeight:1.6,color:"#463F33",margin:"0 0 14px"}}>
+            Being stuck usually means the sentence is fine and something ahead of it is unclear. Pick whichever door is nearest.
+          </p>
+          {NIB_DOORS(unit, project.nibSideDoor).map((d,i)=>(
+            <div className={"nib-door"+(d.out?" out":"")} key={i}>
+              <div className="dt">{d.t}</div><div className="dd">{d.d}</div>
+            </div>
+          ))}
+          <button className="btn btn-ghost btn-sm" style={{paddingLeft:0,marginTop:4}} onClick={onNotes}>Back to the margin</button>
+        </div>
+      ) : (
+        <div>
+          {notes.length===0
+            ? <div className="nib-empty">{ai.ready
+                ? "Nothing yet. I\u2019ll speak up when I notice something \u2014 at the end of a thought, never mid-sentence."
+                : "Add your API key in Settings and I can read along and ask about your story. The doors below work either way."}</div>
+            : notes.map(n=>(
+                <div className="nib-note" key={n.id}>
+                  <p>{n.q}</p>
+                  <div className="na">
+                    <button onClick={()=>onAnswer(n)}>Noted</button>
+                    <button className="dim" onClick={()=>onLater(n)}>Later</button>
+                    <button className="dim" onClick={()=>onLess(n)}>Less like this</button>
+                  </div>
+                </div>
+              ))}
+          <button className="nib-stuck" onClick={onStuck}>I&rsquo;m stuck</button>
+          <div style={{borderTop:"1px solid var(--line)",marginTop:15,paddingTop:13}}>
+            <div className="mono" style={{fontSize:9.5,marginBottom:6}}>Leave yourself a rope</div>
+            <input value={ropeText} onChange={e=>setRopeText(e.target.value)}
+              placeholder="what happens next, in your own shorthand"
+              style={{fontFamily:"'Newsreader'",fontStyle:"italic",fontSize:13.5,padding:"8px 10px"}} />
+            <button className="btn btn-sm" style={{marginTop:8,width:"100%",justifyContent:"center"}}
+              disabled={!ropeText.trim()} onClick={()=>{ onRope(ropeText.trim()); setRopeText(""); }}>Tie it for next time</button>
+            <div style={{fontSize:10.5,color:"var(--muted)",marginTop:7,lineHeight:1.5}}>
+              It&rsquo;ll be waiting at the top of the page when you come back.
+            </div>
+          </div>
+          {ai.ready && <div className="mono" style={{fontSize:9,marginTop:11,color:"var(--muted)"}}>{skimsLeft} reads left this session</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------- CONFIRM DELETE ---------------- */
+function ConfirmDelete({what, detail, onCancel, onConfirm}){
+  return (
+    <div className="overlay" onClick={e=>{if(e.target.className==="overlay")onCancel();}}>
+      <div className="modal confirm-modal">
+        <h2>Are you sure?</h2>
+        <p className="m" style={{marginTop:4}}>This cannot be undone.</p>
+        <div className="confirm-what">{what}</div>
+        {detail && <p className="m" style={{marginTop:6}}>{detail}</p>}
+        <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:20}}>
+          <button className="btn btn-ghost" onClick={onCancel}>Keep it</button>
+          <button className="btn btn-danger" onClick={onConfirm}>Delete for good</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Ask first, then run the deletion. Returns [dialog, ask]. */
+function useConfirmDelete(){
+  const [pending, setPending] = useState(null);
+  const ask = (what, run, detail) => setPending({what, run, detail});
+  const dialog = pending ? (
+    <ConfirmDelete what={pending.what} detail={pending.detail}
+      onCancel={()=>setPending(null)}
+      onConfirm={()=>{ const r=pending.run; setPending(null); r(); }} />
+  ) : null;
+  return [dialog, ask];
 }
 
 /* ---------------- EXPORT MODAL ---------------- */
