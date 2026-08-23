@@ -1207,13 +1207,65 @@ const _CHNUM=["One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Te
 "Twenty-two","Twenty-three","Twenty-four","Twenty-five","Twenty-six","Twenty-seven","Twenty-eight",
 "Twenty-nine","Thirty","Thirty-one","Thirty-two","Thirty-three","Thirty-four","Thirty-five",
 "Thirty-six","Thirty-seven","Thirty-eight","Thirty-nine","Forty"];
-function chaptersForReader(project){
-  return (project.sections||[])
-    .filter(s=>(s.content||"").trim())
-    .map((s,i)=>({ number:_CHNUM[i]||String(i+1), title:s.title||"", text:s.content||"" }));
+
+/* Front matter shouldn't take a chapter number. A section is a numbered chapter
+   unless it's marked otherwise (or its title says so). */
+const SECTION_KINDS=[["chapter","Chapter"],["prologue","Prologue"],["interlude","Interlude"],["epilogue","Epilogue"]];
+function inferKind(title){
+  /* match at the start, or after a book-name prefix like "Elyria - Prologue" */
+  const t=String(title||"").trim().toLowerCase();
+  const at = w => new RegExp("(^|[-\u2013\u2014:|]\\s*)("+w+")\\b").test(t);
+  if(at("prologue|prolog")) return "prologue";
+  if(at("epilogue")) return "epilogue";
+  if(at("interlude|intermission")) return "interlude";
+  return "chapter";
+}
+const kindOf = s => s.kind || inferKind(s.title);
+const kindLabel = k => (SECTION_KINDS.find(x=>x[0]===k)||SECTION_KINDS[0])[1];
+
+/* Strip the book name and a "Chapter 7 —" prefix off a filing label. */
+function tidyChapterTitle(t, bookTitle){
+  let out=String(t||"").trim();
+  const b=String(bookTitle||"").trim();
+  if(b){ out = out.replace(new RegExp("^"+b.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\s*[-\u2013\u2014:]\\s*","i"), ""); }
+  out = out.replace(/^(chapter|prologue|epilogue|interlude|part)\s*[0-9ivxlc]*\s*[-\u2013\u2014:]\s*/i,"").trim();
+  if(/^(chapter|prologue|epilogue|interlude|part)\s*[0-9ivxlc]*$/i.test(out)) return "";
+  return out;
+}
+
+/* Many writers keep the real chapter heading as the first line of the prose.
+   Lift it out so it becomes the chapter title instead of printing twice. */
+function liftHeading(text, sectionTitle){
+  const lines=String(text||"").split("\n");
+  let i=0; while(i<lines.length && !lines[i].trim()) i++;
+  if(i>=lines.length) return {title:null, text:text};
+  const first=lines[i].trim();
+  if(first.length>90 || /[.!?]$/.test(first)) return {title:null, text:text};
+  const norm=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+  const looks = /^(chapter|prologue|epilogue|interlude|part)\b/i.test(first) || norm(first)===norm(sectionTitle);
+  if(!looks) return {title:null, text:text};
+  const m=first.match(/^[^\u2013\u2014-]*[\u2013\u2014-]\s*(.+)$/);
+  const t=(m? m[1] : first).trim();
+  return { title:t, text: lines.slice(i+1).join("\n").replace(/^\s*\n+/,"") };
+}
+
+function chaptersForReader(project, lift){
+  const written=(project.sections||[]).filter(s=>(s.content||"").trim());
+  let n=0;
+  return written.map(s=>{
+    const k=kindOf(s);
+    let title=s.title||"", text=s.content||"";
+    if(lift!==false){
+      const L=liftHeading(text, s.title);
+      if(L.title){ title=L.title; text=L.text; }
+    }
+    title=tidyChapterTitle(title, project.title);
+    if(k==="chapter"){ n++; return {number:_CHNUM[n-1]||String(n), title, text}; }
+    return {number:kindLabel(k), title, text};
+  });
 }
 function runReaderCopy(project, meta){
-  const chapters=chaptersForReader(project);
+  const chapters=chaptersForReader(project, !meta || meta.lift!==false);
   if(!chapters.length) throw new Error("There are no written chapters yet \u2014 write something in the Writing tab first.");
   const bytes=ReaderPDF.build({
     title: project.title||"Untitled",
@@ -3918,6 +3970,11 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
               ) : current && <>
                 <div className="add-inline" style={{marginBottom:10}}>
                   <input value={current.title} onChange={e=>editSection(current.id,{title:e.target.value})} style={{fontFamily:"Fraunces",fontSize:18,border:"none",background:"none"}} />
+                  <select value={kindOf(current)} onChange={e=>editSection(current.id,{kind:e.target.value})}
+                    title="How this is labelled in a reader copy. Only chapters get numbers."
+                    style={{width:"auto",padding:"5px 8px",fontSize:12.5,borderRadius:8}}>
+                    {SECTION_KINDS.map(([v,l])=><option key={v} value={v}>{l}</option>)}
+                  </select>
                   <button className="btn btn-ghost btn-sm" onClick={()=>delSection(current.id)}>Delete</button>
                 </div>
                 <textarea className="write-area" style={["play","screenplay"].includes(project.type)?{fontFamily:"'IBM Plex Mono',monospace",fontSize:14.5}:undefined} value={current.content}
@@ -4155,11 +4212,12 @@ function ExportModal({project, close}){
   const [readerName,setReaderName]=useState("");
   const [note,setNote]=useState("");
   const [trim,setTrim]=useState("5.5x8.5");
+  const [lift,setLift]=useState(true);
   const [rcErr,setRcErr]=useState("");
   const writtenChapters=(project.sections||[]).filter(s=>(s.content||"").trim()).length;
   const doReaderCopy=()=>{
     setRcErr("");
-    try{ store.set("ss_author",author); runReaderCopy(project,{author,readerName,note,trim}); close(); }
+    try{ store.set("ss_author",author); runReaderCopy(project,{author,readerName,note,trim,lift}); close(); }
     catch(e){ setRcErr(e.message||"Something went wrong building the PDF."); }
   };
   const counts={outline:project.chapters.length,characters:project.characters.length,world:project.world.length,writing:project.sections.length};
@@ -4206,6 +4264,22 @@ function ExportModal({project, close}){
               <button key={id} className="chip" style={trim===id?selStyle:{}} onClick={()=>setTrim(id)}>{lbl}</button>
             ))}
           </div>
+          <label style={{display:"flex",alignItems:"center",gap:8,marginTop:12,fontWeight:400,cursor:"pointer"}}>
+            <input type="checkbox" checked={lift} onChange={e=>setLift(e.target.checked)} style={{width:"auto",margin:0}} />
+            <span className="m" style={{margin:0}}>Use the heading line inside each chapter as its title</span>
+          </label>
+          {writtenChapters>0 && (()=>{ const prev=chaptersForReader(project,lift).slice(0,4); return (
+            <div style={{marginTop:10,padding:"10px 12px",background:"var(--paper)",borderRadius:8}}>
+              <div className="mono" style={{fontSize:9,marginBottom:6}}>How the chapter pages will open</div>
+              {prev.map((c,i)=>(
+                <div key={i} className="reading" style={{fontSize:13,lineHeight:1.6}}>
+                  <span style={{letterSpacing:".08em",textTransform:"uppercase",fontSize:11,color:"var(--muted)"}}>{c.number}</span>
+                  {c.title? <span> · {c.title}</span> : null}
+                </div>
+              ))}
+              {chaptersForReader(project,lift).length>4 && <div className="m" style={{marginTop:4}}>…and {chaptersForReader(project,lift).length-4} more</div>}
+            </div>
+          ); })()}
           <button className="btn btn-primary" style={{marginTop:12,width:"100%",justifyContent:"center"}}
             onClick={doReaderCopy} disabled={!writtenChapters}>
             ↓ Download reader copy .pdf
