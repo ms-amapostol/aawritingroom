@@ -396,16 +396,31 @@
   .confirm-modal{max-width:420px;}
   .confirm-modal h2{color:#B3261E;}
   .confirm-what{font-family:'Newsreader',Georgia,serif;font-size:17px;background:var(--paper);border-radius:9px;padding:11px 14px;margin:12px 0 4px;}
-  @keyframes crumple{
-    0%  {transform:scale(1) rotate(0deg);            opacity:1;   filter:blur(0);}
-    22% {transform:scale(.955) rotate(-1.4deg) skewX(2deg);        filter:blur(.4px);}
-    42% {transform:scale(.80) rotate(2.6deg)  skewX(-4deg);}
-    62% {transform:scale(.52) rotate(-5deg)   skewX(6deg); opacity:.85;}
-    82% {transform:scale(.24) rotate(11deg);  opacity:.45; filter:blur(1.4px);}
-    100%{transform:scale(.05) rotate(24deg) translateY(38px); opacity:0; filter:blur(3px);}
+  /* tearing a page in half */
+  .tear-stage{position:relative;}
+  .tear-half{overflow:hidden;pointer-events:none;backface-visibility:hidden;}
+  .tear-half.tl{position:relative;
+    clip-path:polygon(0 0, 51% 0, 47.5% 7%, 52.5% 15%, 47% 23%, 52% 31%, 47.5% 39%,
+      52.5% 47%, 47% 55%, 52% 63%, 47.5% 71%, 52.5% 79%, 47% 87%, 52% 94%, 49% 100%, 0 100%);
+    transform-origin:0% 50%;animation:tearL .82s cubic-bezier(.5,.02,.82,.42) forwards;}
+  .tear-half.tr{position:absolute;inset:0;
+    clip-path:polygon(51% 0, 100% 0, 100% 100%, 49% 100%, 52% 94%, 47% 87%, 52.5% 79%,
+      47.5% 71%, 52% 63%, 47% 55%, 52.5% 47%, 47.5% 39%, 52% 31%, 47% 23%, 52.5% 15%, 47.5% 7%);
+    transform-origin:100% 50%;animation:tearR .82s cubic-bezier(.5,.02,.82,.42) forwards;}
+  @keyframes tearL{
+    0%  {transform:none;opacity:1;}
+    16% {transform:translateX(-7px) rotate(-1.2deg);}
+    100%{transform:translateX(-30%) translateY(58%) rotate(-19deg);opacity:0;}
   }
-  .crumpling{animation:crumple .62s cubic-bezier(.4,.02,.7,.9) forwards;transform-origin:52% 46%;pointer-events:none;}
-  @media (prefers-reduced-motion:reduce){ .crumpling{animation:none;opacity:0;transition:opacity .2s;} }
+  @keyframes tearR{
+    0%  {transform:none;opacity:1;}
+    16% {transform:translateX(7px) rotate(1.4deg);}
+    100%{transform:translateX(30%) translateY(64%) rotate(21deg);opacity:0;}
+  }
+  .tear-half .write-static{white-space:pre-wrap;overflow:hidden;}
+  @media (prefers-reduced-motion:reduce){
+    .tear-half.tl,.tear-half.tr{animation:none;opacity:0;transition:opacity .25s;}
+  }
   @media(max-width:980px){.split{grid-template-columns:1fr;} .choice-grid,.choice-grid.three{grid-template-columns:1fr;}}
   .section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap;}
   .section-head h2{font-size:22px;margin:0;}
@@ -3812,7 +3827,7 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
 
   const [crumpling, setCrumpling] = useState(false);
   const delSection = (id)=>{ const rest=sections.filter(s=>s.id!==id); upd({sections:rest}); if(active===id) setActive(rest[0]?.id||null); };
-  const crumpleThenDelete = (id, fn)=>{ setCrumpling(true); setTimeout(()=>{ setCrumpling(false); fn(id); }, 620); };
+  const tearThenDelete = (id, fn)=>{ setCrumpling(true); setTimeout(()=>{ setCrumpling(false); fn(id); }, 820); };
   const toggleFocus = (fid)=>{ const has=project.editorFocus.includes(fid); upd({editorFocus: has?project.editorFocus.filter(x=>x!==fid):[...project.editorFocus,fid]}); };
 
   async function summarize(){
@@ -4116,7 +4131,7 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
             {sections.length>=1 && kind==="chapters" && <button className={"btn btn-sm"+(readAll?" btn-primary":"")} onClick={()=>{ const nv=!readAll; setReadAll(nv); if(nv) setEdScope("whole"); }}>{readAll?"\u270E Back to writing":"\uD83D\uDCD6 Read the whole draft"}</button>}
             {current && kind==="chapters" && <button className="btn btn-danger btn-sm"
               onClick={()=>askDelete(current.title||"Untitled",
-                ()=>crumpleThenDelete(current.id, delSection),
+                ()=>tearThenDelete(current.id, delSection),
                 `${wordCount.toLocaleString()} words will be thrown away.`)}>
               Delete this {unitName(project.type).toLowerCase()}</button>}
           </div>
@@ -4209,7 +4224,21 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
                     <button className="btn btn-sm btn-ghost" onClick={()=>upd({rope:null})}>Picked it up</button>
                   </div>
                 )}
-                <div className={"sheet wf-"+writeFont+" pw-"+pageWidth+(crumpling?" crumpling":"")}>
+                {crumpling ? (()=>{
+                  const face = (
+                    <div className={"sheet wf-"+writeFont+" pw-"+pageWidth}>
+                      <div className="sh-title"><span style={{fontFamily:"Fraunces",fontSize:19}}>{current.title||"Untitled"}</span></div>
+                      <div className="page"><div className="write-area write-static">{current.content}</div></div>
+                    </div>
+                  );
+                  return (
+                    <div className="tear-stage" aria-hidden="true">
+                      <div className="tear-half tl">{face}</div>
+                      <div className="tear-half tr">{face}</div>
+                    </div>
+                  );
+                })() : null}
+                <div style={{display:crumpling?"none":undefined}} className={"sheet wf-"+writeFont+" pw-"+pageWidth}>
                   <div className="sh-title">
                     <input value={current.title} onChange={e=>editSection(current.id,{title:e.target.value})} placeholder="Untitled" />
                     <select value={kindOf(current)} onChange={e=>editSection(current.id,{kind:e.target.value})}
@@ -4517,15 +4546,18 @@ function NibPanel({project, ai, notes, onAnswer, onLater, onLess, onStuck, mode,
               ))}
           <button className="nib-stuck" onClick={onStuck}>I&rsquo;m stuck</button>
           <div style={{borderTop:"1px solid var(--line)",marginTop:15,paddingTop:13}}>
-            <div className="mono" style={{fontSize:9.5,marginBottom:6}}>Leave yourself a rope</div>
-            <input value={ropeText} onChange={e=>setRopeText(e.target.value)}
-              placeholder="what happens next, in your own shorthand"
-              style={{fontFamily:"'Newsreader'",fontStyle:"italic",fontSize:13.5,padding:"8px 10px"}} />
+            <div className="mono" style={{fontSize:9.5,marginBottom:4}}>Leave yourself a rope</div>
+            <div style={{fontSize:11.5,color:"var(--muted)",lineHeight:1.5,marginBottom:8}}>
+              One line on what happens next, in your own shorthand. It&rsquo;ll be waiting at the top
+              of the page when you come back, so you never start cold.
+            </div>
+            <textarea value={ropeText} onChange={e=>setRopeText(e.target.value)}
+              rows={2} placeholder="e.g. he doesn&rsquo;t send her away"
+              style={{width:"100%",fontFamily:"'Newsreader'",fontStyle:"italic",fontSize:13.5,
+                padding:"9px 11px",lineHeight:1.5,border:"1px solid var(--line)",borderRadius:9,
+                background:"var(--paper)",resize:"none"}} />
             <button className="btn btn-sm" style={{marginTop:8,width:"100%",justifyContent:"center"}}
               disabled={!ropeText.trim()} onClick={()=>{ onRope(ropeText.trim()); setRopeText(""); }}>Tie it for next time</button>
-            <div style={{fontSize:10.5,color:"var(--muted)",marginTop:7,lineHeight:1.5}}>
-              It&rsquo;ll be waiting at the top of the page when you come back.
-            </div>
           </div>
           {ai.ready && <div className="mono" style={{fontSize:9,marginTop:11,color:"var(--muted)"}}>{skimsLeft} reads left this session</div>}
         </div>
