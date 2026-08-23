@@ -348,6 +348,7 @@
 
   /* layout cols */
   .split{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start;}
+  .split.solo{grid-template-columns:minmax(0,1fr);}
   @media(max-width:980px){.split{grid-template-columns:1fr;} .choice-grid,.choice-grid.three{grid-template-columns:1fr;}}
   .section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap;}
   .section-head h2{font-size:22px;margin:0;}
@@ -361,6 +362,31 @@
   .write-area{width:100%;min-height:280px;border:1px solid var(--line);border-radius:12px;padding:22px 24px;font-family:'Newsreader',Georgia,serif;font-size:17px;line-height:1.7;background:var(--panel);resize:vertical;}
   .write-area:focus{outline:none;border-color:var(--indigo);box-shadow:var(--shadow);}
   .write-area.small{min-height:120px;font-size:16px;}
+
+  /* ---------------- THE DESK ---------------- */
+  .desk-status{display:flex;align-items:center;gap:11px;flex-wrap:wrap;padding:2px 2px 11px;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--muted);}
+  .desk-status select.ds-pick{width:auto;max-width:270px;padding:5px 9px;font-size:13px;border-radius:8px;background:var(--panel);}
+  .desk-status .ds-right{margin-left:auto;display:flex;align-items:center;gap:13px;flex-wrap:wrap;}
+  .ds-fonts{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--panel);}
+  .ds-fonts button{border:none;background:none;padding:4px 11px;font-size:11.5px;color:var(--muted);cursor:pointer;}
+  .ds-fonts button.on{background:var(--ink);color:var(--paper);}
+  .ds-icon{border:none;background:none;color:var(--muted);font-size:15px;padding:3px 7px;cursor:pointer;border-radius:7px;line-height:1;}
+  .ds-icon:hover{color:var(--indigo);background:var(--indigo-soft);}
+  .ds-icon.on{color:var(--indigo);background:var(--indigo-soft);}
+  .desk-more{border:1px solid var(--line);border-top:none;border-radius:0 0 12px 12px;background:var(--panel);padding:16px;}
+  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:40px 26px 30px;box-shadow:var(--shadow);margin-top:18px;}
+  .sheet .page{max-width:34rem;margin:0 auto;}
+  .sheet .write-area{border:none;background:none;padding:0;min-height:430px;resize:none;}
+  .sheet .write-area:focus{outline:none;border:none;box-shadow:none;}
+  .sheet .sh-title{display:flex;align-items:center;gap:8px;max-width:34rem;margin:0 auto 18px;}
+  .sheet .sh-title input{font-family:'Fraunces';font-size:19px;border:none;background:none;padding:0;}
+  .sheet .sh-wc{max-width:34rem;margin:16px auto 0;font-size:11px;color:var(--muted);font-family:'IBM Plex Mono';}
+  .wf-serif .write-area{font-family:'Newsreader',Georgia,serif !important;font-size:18px;line-height:1.85;letter-spacing:0 !important;}
+  .wf-sans  .write-area{font-family:'Inter',system-ui,sans-serif !important;font-size:16.5px;line-height:1.8;letter-spacing:0 !important;}
+  .wf-type  .write-area{font-family:'IBM Plex Mono',monospace !important;font-size:14.5px;line-height:1.85;letter-spacing:-.04em !important;}
+  body.focusing .topbar,body.focusing .tabs,body.focusing .footer,body.focusing .hide-in-focus{display:none !important;}
+  body.focusing .split{grid-template-columns:minmax(0,1fr) !important;}
+  body.focusing .sheet{border-color:transparent;box-shadow:none;}
 
   /* cards */
   .card{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow);}
@@ -3561,6 +3587,15 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
   const [flags, setFlags] = useState(null);
   const [flagBusy, setFlagBusy] = useState(false);
   const [readAll, setReadAll] = useState(false);
+  const [writeFont, setWriteFont] = useState(()=>store.get("ss_writefont","serif"));
+  const [focusing, setFocusing] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const pickFont = f => { setWriteFont(f); store.set("ss_writefont", f); };
+  useEffect(()=>{ document.body.classList.toggle("focusing", focusing);
+    return ()=>document.body.classList.remove("focusing"); },[focusing]);
+  useEffect(()=>{ const h=e=>{ if(e.key==="Escape") setFocusing(false); };
+    window.addEventListener("keydown",h); return ()=>window.removeEventListener("keydown",h); },[]);
   const [edScope, setEdScope] = useState("current");
   const [askQ, setAskQ] = useState("");
   const [askBusy, setAskBusy] = useState(false);
@@ -3871,21 +3906,42 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
   }
 
   return (
-    <div className="split">
+    <div className={"split"+(toolsOpen?"":" solo")}>
       <div>
-        <div className="section-head">
-          <div><h2>Writing</h2><div className="sub">{typeLabel(project.type)} · formatting is pre-set for this form. Freewrite freely.</div></div>
-          <button className="btn btn-sm" onClick={()=>kind==="scenes"?addScene():addSection()}>+ New {(kind==="scenes"?"scene":primaryUnit(project.type).toLowerCase())}</button>
+        <div className="desk-status">
+          <select className="ds-pick" value={(kind==="chapters"?(current&&current.id):(curScene&&curScene.id))||""}
+            onChange={e=>kind==="chapters"?setActive(e.target.value):setActiveScene(e.target.value)}>
+            {(kind==="chapters"?sections:scenes).length===0 && <option value="">Nothing written yet</option>}
+            {(kind==="chapters"?sections:scenes).map((s,i)=>(
+              <option key={s.id} value={s.id}>{i+1}. {s.title||"Untitled"}</option>
+            ))}
+          </select>
+          <span className="hide-in-focus">{wordCount.toLocaleString()} words</span>
+          <div className="ds-right">
+            <span className="hide-in-focus" style={{whiteSpace:"nowrap"}}>
+              <b style={{fontWeight:500,color:"var(--ink)"}}>{todayWritten.toLocaleString()}</b> of{" "}
+              <button className="tb-goal" title="Change your daily goal" onClick={()=>{const v=prompt("Words per day that feels doable (small beats ambitious):", String(dailyGoal)); const n=parseInt(v); if(n>0) upd({dailyGoal:n});}}>{dailyGoal.toLocaleString()}</button> today
+              {todayWritten>=dailyGoal && <span className="tb-done"> ✓</span>}
+            </span>
+            <div className="ds-fonts" title="Type face for the page">
+              {[["sans","Sans"],["serif","Serif"],["type","Type"]].map(([f,l])=>(
+                <button key={f} className={writeFont===f?"on":""} onClick={()=>pickFont(f)}>{l}</button>
+              ))}
+            </div>
+            <button className={"ds-icon"+(toolsOpen?" on":"")} title="Writing tools" onClick={()=>setToolsOpen(v=>!v)}>✦</button>
+            <button className={"ds-icon"+(focusing?" on":"")} title="Focus mode \u2014 Esc to leave" onClick={()=>setFocusing(v=>!v)}>⤡</button>
+            <button className={"ds-icon hide-in-focus"+(moreOpen?" on":"")} title="Chapters, importing, formatting" onClick={()=>setMoreOpen(v=>!v)}>⋯</button>
+          </div>
         </div>
 
-        <RollingTip type={project.type} />
-
-        <div className="today-bar">
-          <span className="tb-label">Today</span>
-          <div className="tb-track"><i style={{width:Math.min(100,Math.round(todayWritten/dailyGoal*100))+"%"}}></i></div>
-          <span className="tb-count">{todayWritten.toLocaleString()} / <button className="tb-goal" title="Change your daily goal" onClick={()=>{const v=prompt("Words per day that feels doable (small beats ambitious):", String(dailyGoal)); const n=parseInt(v); if(n>0) upd({dailyGoal:n});}}>{dailyGoal.toLocaleString()}</button> words {todayWritten>=dailyGoal && <span className="tb-done">✓ done for today</span>}</span>
-          {monthDays>0 && <span className="tb-identity">You've shown up {monthDays} day{monthDays===1?"":"s"} this month.</span>}
-        </div>
+        {moreOpen && <div className="desk-more hide-in-focus">
+          <div className="toolbar" style={{marginTop:0,marginBottom:14}}>
+            <button className="btn btn-sm" onClick={()=>kind==="scenes"?addScene():addSection()}>+ New {(kind==="scenes"?"scene":primaryUnit(project.type).toLowerCase())}</button>
+            {sections.length>=1 && kind==="chapters" && <button className={"btn btn-sm"+(readAll?" btn-primary":"")} onClick={()=>{ const nv=!readAll; setReadAll(nv); if(nv) setEdScope("whole"); }}>{readAll?"\u270E Back to writing":"\uD83D\uDCD6 Read the whole draft"}</button>}
+            {current && kind==="chapters" && <button className="btn btn-ghost btn-sm" onClick={()=>delSection(current.id)}>Delete this {unitName(project.type).toLowerCase()}</button>}
+          </div>
+          <RollingTip type={project.type} />
+        </div>}
 
         {celeb && (
           <div className="celebrate" onClick={()=>setCeleb(null)}>
@@ -3893,13 +3949,13 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
           </div>
         )}
 
-        <div className="mode-row" style={{marginBottom:14}}>
+        <div className="mode-row hide-in-focus" style={{marginBottom:14,display:moreOpen?undefined:"none"}}>
           <button className={"mode-btn"+(kind==="chapters"?" on":"")} onClick={()=>setKind("chapters")}>{primaryUnit(project.type)}s</button>
           <button className={"mode-btn"+(kind==="scenes"?" on":"")} onClick={()=>setKind("scenes")}>{primaryUnit(project.type)!=="Scene"?"Scenes":"Loose scenes"} {scenes.length>0?`· ${scenes.length}`:""}</button>
         </div>
 
         {kind==="chapters" && (<div>
-        <div className="upload-row" style={{marginBottom:16}}>
+        <div className="upload-row hide-in-focus" style={{marginBottom:16,display:moreOpen?undefined:"none"}}>
           <div className="ur-head">Already written some chapters?</div>
           <div className="ur-sub">Bring in a chapter (.docx, .txt, .md) and I'll add it here, then read it into your Outline, Characters &amp; World. Or paste the text.</div>
           <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
@@ -3922,8 +3978,8 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
           {err && <div className="err">{err}</div>}
         </div>
 
-        {FORMAT_GUIDES[project.type] && (
-          <div className="howbox" style={{marginBottom:16}}>
+        {FORMAT_GUIDES[project.type] && moreOpen && (
+          <div className="howbox hide-in-focus" style={{marginBottom:16}}>
             <button className="how-toggle" onClick={()=>setFmtOpen(v=>!v)}>
               <span>Industry format guide {fmtOpen?"▲":"▼"}</span>
               <span className="mono">standard {typeLabel(project.type).toLowerCase()} formatting</span>
@@ -3951,10 +4007,6 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
               — or build an outline first and send it here.
             </div>
           : <div>
-              <div style={{display:"flex",gap:8,alignItems:"flex-start",flexWrap:"wrap",marginBottom:6}}>
-                <div style={{flex:1,minWidth:220}}><DocPicker items={sections} activeId={current?.id} onPick={setActive} /></div>
-                {sections.length>=1 && <button className={"btn btn-sm"+(readAll?" btn-primary":"")} onClick={()=>{ const nv=!readAll; setReadAll(nv); if(nv) setEdScope("whole"); }}>{readAll?"✎ Back to writing":"📖 Read + links"}</button>}
-              </div>
               {readAll ? (
                 <div>
                   {sections.map(x=>(
@@ -3968,19 +4020,21 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
                   <div className="wc">{sections.reduce((n,x)=>n+((x.content||"").trim()? x.content.trim().split(/\s+/).length:0),0).toLocaleString()} words total · character names link to their cards</div>
                 </div>
               ) : current && <>
-                <div className="add-inline" style={{marginBottom:10}}>
-                  <input value={current.title} onChange={e=>editSection(current.id,{title:e.target.value})} style={{fontFamily:"Fraunces",fontSize:18,border:"none",background:"none"}} />
-                  <select value={kindOf(current)} onChange={e=>editSection(current.id,{kind:e.target.value})}
-                    title="How this is labelled in a reader copy. Only chapters get numbers."
-                    style={{width:"auto",padding:"5px 8px",fontSize:12.5,borderRadius:8}}>
-                    {SECTION_KINDS.map(([v,l])=><option key={v} value={v}>{l}</option>)}
-                  </select>
-                  <button className="btn btn-ghost btn-sm" onClick={()=>delSection(current.id)}>Delete</button>
+                <div className={"sheet wf-"+writeFont}>
+                  <div className="sh-title">
+                    <input value={current.title} onChange={e=>editSection(current.id,{title:e.target.value})} placeholder="Untitled" />
+                    <select value={kindOf(current)} onChange={e=>editSection(current.id,{kind:e.target.value})}
+                      title="How this is labelled in a reader copy. Only chapters get numbers."
+                      style={{width:"auto",padding:"4px 7px",fontSize:12,borderRadius:8}}>
+                      {SECTION_KINDS.map(([v,l])=><option key={v} value={v}>{l}</option>)}
+                    </select>
+                  </div>
+                  <div className="page">
+                    <textarea className="write-area" value={current.content}
+                      onChange={e=>editSection(current.id,{content:e.target.value})}
+                      placeholder={scaffold(project.type)? "Formatting scaffold is filled in — write over it." : "One sentence is enough to start."} />
+                  </div>
                 </div>
-                <textarea className="write-area" style={["play","screenplay"].includes(project.type)?{fontFamily:"'IBM Plex Mono',monospace",fontSize:14.5}:undefined} value={current.content}
-                  onChange={e=>editSection(current.id,{content:e.target.value})}
-                  placeholder={scaffold(project.type)? "Formatting scaffold is filled in — write over it." : "Begin…"} />
-                <div className="wc">{wordCount} words</div>
                 {(()=>{ const oc=(project.chapters||[]).find(c=>c.title===current.title);
                   const rel=scenes.filter(s=>oc && s.chapterId===oc.id);
                   return rel.length? (
@@ -3995,7 +4049,7 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
                       <div style={{fontSize:11,color:"var(--muted)",fontStyle:"italic",marginTop:4}}>Open a scene to reread it, then weave it in here in your own words.</div>
                     </div>
                   ):null; })()}
-                <div className="toolbar">
+                <div className="toolbar hide-in-focus" style={{display:toolsOpen?undefined:"none"}}>
                   <button className="btn btn-primary btn-sm" disabled={inspBusy} onClick={inspireMe}>
                     {inspBusy? <><span className="spin"></span> Finding a spark…</> : <>{iSpark} Inspire me</>}
                   </button>
@@ -4009,7 +4063,7 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
                     {anBusy? <><span className="spin dark"></span> Parsing…</> : <>{iSpark} Update outline · characters · world</>}
                   </button>
                 </div>
-                {keeperOut && (
+                {toolsOpen && keeperOut && (
                   <div className="card" style={{marginTop:12,background:"var(--amber-soft)",borderColor:"#E9D4B4"}}>
                     <div className="mono" style={{marginBottom:6,color:"var(--amber)"}}>Lines worth keeping — yours, verbatim</div>
                     {keeperOut.map((l,i)=>(
@@ -4020,14 +4074,14 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
                     ))}
                   </div>
                 )}
-                {inspire && (
+                {toolsOpen && inspire && (
                   <div className="card" style={{marginTop:12,background:"var(--indigo-soft)",borderColor:"#c9e3e0"}}>
                     <div className="mono" style={{marginBottom:4,color:"var(--indigo)"}}>A spark — not a draft</div>
                     <div className="reading" style={{fontSize:15,color:"#173a37"}}>{inspire}</div>
                     <div style={{fontSize:11.5,color:"var(--muted)",marginTop:8,fontStyle:"italic"}}>The next words are yours to write.</div>
                   </div>
                 )}
-                {current.summary && (
+                {toolsOpen && current.summary && (
                   <div className="card" style={{marginTop:12,background:"var(--sage-soft)",borderColor:"#D7E0E4"}}>
                     <div className="mono" style={{marginBottom:4}}>End-of-{unitName(project.type).toLowerCase()} summary</div>
                     <div className="reading" style={{fontSize:15,color:"#2C4A5A"}}>{current.summary}</div>
@@ -4102,7 +4156,7 @@ function WritingTab({project, upd, ai, openSettings, focusDoc, onFocusConsumed, 
       </div>
 
       {/* AI EDITOR */}
-      <div className="editor-panel">
+      <div className="editor-panel hide-in-focus" style={{display:toolsOpen?undefined:"none"}}>
         <h3>AI editor</h3>
         <div className="ed-sub">Tuned to {typeLabel(project.type).toLowerCase()}. Choose what it should watch for. Buttons marked {iSpark} use your API key (a few cents each).</div>
         <div className="chips">
