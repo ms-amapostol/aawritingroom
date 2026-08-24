@@ -731,14 +731,22 @@ const TYPES = {
     {id:"poetry", t:"Poetry", d:"A collection of poems."},
   ],
   nonfiction:[
-    {id:"memoir", t:"Autobiography / Memoir", d:"Your own life, told your way."},
-    {id:"biography", t:"Historical biography", d:"The life of another, chronologically."},
+    {id:"memoir", t:"Autobiography / Memoir", d:"Your own life, shaped as a story."},
+    {id:"biography", t:"Biography / Narrative nonfiction", d:"Another life, or a true story, told with an arc."},
     {id:"journal", t:"Journal / Devotional", d:"Dated entries or daily reflections."},
     {id:"essay", t:"Essay collection", d:"Themed nonfiction essays."},
     {id:"howto", t:"Self-help / How-to", d:"Teaching a framework or transformation."},
     {id:"other", t:"Other nonfiction", d:"Free structure — you decide."},
   ]
 };
+/* Forms this room is built for: one story, one spine. Everything from the spine paragraph
+   to the beat-presence strip assumes a single narrative arc, so the new-project picker
+   offers only those. Existing projects of any other type keep working untouched. */
+const NARRATIVE_TYPES = ["novel","memoir","biography"];
+const isNarrative = (id)=>NARRATIVE_TYPES.includes(id);
+const typesFor = (cat, currentType)=>
+  TYPES[cat].filter(x=>isNarrative(x.id) || x.id===currentType);
+
 const typeLabel = (id)=>{ for(const c of ["fiction","nonfiction"]){ const m=TYPES[c].find(x=>x.id===id); if(m) return m.t; } return id; };
 const unitName = (id)=>({novel:"Chapter",vignettes:"Vignette",play:"Scene",screenplay:"Scene",poetry:"Poem",memoir:"Chapter",biography:"Chapter",journal:"Entry",essay:"Essay",howto:"Chapter",other:"Section"}[id]||"Section");
 // the larger organizing container (what the primary tab is). For scripts this differs from the scene unit
@@ -2064,12 +2072,16 @@ function Setup({onDone, onCancel}){
             <h2>What form does it take?</h2>
             <p className="lede">Pick the closest match — you can freewrite regardless of what you choose.</p>
             <div className="choice-grid">
-              {TYPES[category].map(o=>(
+              {typesFor(category).map(o=>(
                 <button key={o.id} className={"choice-card"+(type===o.id?" selected":"")} onClick={()=>setType(o.id)}>
                   <div className="t">{o.t}</div>
                   <div className="d">{o.d}</div>
                 </button>
               ))}
+            </div>
+            <div className="sub" style={{fontFamily:"'Newsreader'",fontStyle:"italic",marginTop:14,fontSize:13.5}}>
+              This room is built around one story with one spine, so it offers the forms that shape works that way.
+              Short-story and poetry collections are coming; scripts have their own needs and live elsewhere.
             </div>
             <div className="setup-nav">
               <button className="btn btn-ghost" onClick={()=>setStep(0)}>Back</button>
