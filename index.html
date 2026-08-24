@@ -1755,7 +1755,7 @@ function GettingStarted(){
   const steps=[
     ["Add your key","Open Settings (top right) and paste your Anthropic API key. Every AI feature runs on your own key, billed to you — nothing goes through anyone else's server."],
     ["Start a project","Click + New project, pick your form (novel, memoir, poetry, screenplay…), name it, and write one line about what it's really about."],
-    ["Shape, then write","Sketch your beats in Outline, let Characters & World fill in as you go, and draft in Writing. Ask for a spark when stuck — never a draft."],
+    ["Shape, then write","Sketch your beats in Outline, let Characters & World fill in as you go, and draft in Writing. Ask for a spark when stuck; the drafting stays yours."],
     ["Back up often","Your work lives in this browser only. Use ↓ Back up here (or in Settings) to save a copy you can restore anytime, anywhere."]
   ];
   return (
@@ -1782,7 +1782,7 @@ function PhilosophyBox(){
     ["Name the point","Before anything else, know what your story is really about — its armature. One sentence. Everything is sculpted around it."],
     ["Shape the spine","Sketch the beats: a world, a disruption, consequences, a changed ending. High level — a sentence per beat is enough."],
     ["Orbit the spine","Now everything gathers around it: scenes you can already see, chapters, characters, the world. Write scenes out of order if that's where the energy is."],
-    ["Write","Draft chapters with your scenes waiting beside them. When you stall, ask for a spark — never a draft."],
+    ["Write","Draft chapters with your scenes waiting beside them. When you stall, ask for a spark; the drafting stays yours."],
     ["Finish & sharpen","Continuity checks, the armature test, editorial notes. Cut what drifts, keep what serves. Then ship it."]
   ];
   return (
@@ -2920,7 +2920,7 @@ function SpineRoadmap({project, upd, ai, openSettings, logReview}){
         {showHow && (
           <div className="how-body">
             {framework==="story" && <p className="reading" style={{fontSize:14.5,marginTop:0}}>Almost every satisfying story rides the same seven-beat spine (Kenn Adams' "Story Spine," used by Pixar; taught in McDonald's <i>Invisible Ink</i> as the seven steps). It's three acts in plain language — a world, a disruption, escalating consequences, and a changed ending that lets your <b>point</b> land.</p>}
-            {framework==="poetry" && <p className="reading" style={{fontSize:14.5,marginTop:0}}>A poetry collection isn't a plot — it's a <b>mixtape</b>. The craft is in the ordering: an opening poem that teaches the reader how to read the book, thematic <b>movements</b> that braid and vary your threads, a <b>turn</b> past the middle, and a closing poem that reframes everything. The aim is evolution toward a conclusion — not a resolution.</p>}
+            {framework==="poetry" && <p className="reading" style={{fontSize:14.5,marginTop:0}}>A poetry collection works like a <b>mixtape</b>. The craft is in the ordering: an opening poem that teaches the reader how to read the book, thematic <b>movements</b> that braid and vary your threads, a <b>turn</b> past the middle, and a closing poem that reframes everything. The aim is evolution toward a conclusion — not a resolution.</p>}
             {framework==="collection" && <p className="reading" style={{fontSize:14.5,marginTop:0}}>Linked stories or vignettes work like a well-sequenced album: each piece stands alone, but the <b>order</b> creates cumulative force. Lead with your strongest representative piece, show your range, anchor the middle with a centerpiece, complicate with a counterpoint, and close with the piece that makes the whole feel inevitable.</p>}
             <div className="how-steps">
               {beats.map((b,i)=>(
@@ -3848,7 +3848,7 @@ function WorldTab({project, upd, ai, openSettings, onJumpToDoc, logReview}){
                 ["Establish the rules early","Tell the reader what's possible in your world before it matters. A rule revealed only when it saves the hero feels like cheating."],
                 ["Rules need costs","Magic, technology, power — whatever bends reality should cost something. Limits create tension; omnipotence kills it."],
                 ["The world presses on the plot","Your best world details are the ones characters collide with. If removing an element changes nothing, it's decoration."],
-                ["Mentions are the measure","An element described once and never touched again isn't world-building — it's inventory. The counts below show what's actually alive on your pages."],
+                ["Mentions are the measure","An element described once and never touched again is inventory. The counts below show what your pages actually lean on."],
                 ["Nonfiction has a world too","In memoir or devotional, 'world' is the era, the community, the kitchen table. Grounding readers in the real place earns their trust."],
                 ["Reveal, don't recite","Deliver the world through action and consequence, not paragraphs of explanation. If a character can experience it, don't have a narrator announce it."]
               ].map((t,i)=>(
